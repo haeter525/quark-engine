@@ -4,6 +4,8 @@
 
 import functools
 import os
+from androguard.decompiler import decompiler
+from androguard.core.bytecodes.dvm import DalvikVMFormat
 from quark.utils.pprint import print_info
 import re
 from collections import defaultdict
@@ -12,7 +14,7 @@ import os.path
 import tempfile
 from typing import Dict, Generator, List, Optional, Set, Union
 
-from androguard.core.analysis.analysis import MethodAnalysis
+from androguard.core.analysis.analysis import Analysis, MethodAnalysis
 from androguard.core.bytecodes.dvm_types import Operand
 from androguard.misc import AnalyzeAPK, AnalyzeDex, get_default_session
 
@@ -38,12 +40,27 @@ class AndroguardImp(BaseApkinfo):
         elif self.ret_type == "DEX":
             # return the sha256hash, DalvikVMFormat, and Analysis objects
             session = get_default_session()
-            self.analysis = None
+            self.analysis = Analysis()
 
-            for path in apk_filepath:
-                print_info(f"Loading dex...{path}")
-                with open(path, 'rb') as file:
-                    _, _, self.analysis = session.addDEX(path, file.read(), dx=self.analysis)            
+            # for path in apk_filepath:
+            #     print_info(f"Loading dex...{path}")
+            #     with open(path, 'rb') as file:
+            #         _, _, self.analysis = session.addDEX(path, file.read(), dx=self.analysis)            
+
+            d = []
+            dx = Analysis()
+            for file in apk_filepath:
+                with open(file, 'rb') as dex:
+                    print_info(f"Loading dex...{file}")
+                    df = DalvikVMFormat(dex.read(), using_api=30)
+                    dx.add(df)
+                    d.append(df)
+                    df.set_decompiler(decompiler.DecompilerDAD(d, dx))
+
+            dx.create_xref()
+
+            self.analysis = dx
+
         else:
             raise ValueError("Unsupported File type.")
 

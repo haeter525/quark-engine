@@ -2,6 +2,7 @@
 # This file is part of Quark-Engine - https://github.com/quark-engine/quark-engine
 # See the file 'LICENSE' for copying permission.
 import re
+import rzpipe
 import os.path
 import subprocess
 import json
@@ -74,7 +75,7 @@ def _search_cross_references(call_graph_analysis_list, search_depth, extra_metho
                 expand_queue = next_expand_queue
 
         referenced_set = called_function_set.intersection(parent_set)
-        referenced_set = extra_method_set.intersection(parent_set)
+        referenced_set.update(called_function_set.intersection(extra_method_set))
         referenced_set.discard(parent)
 
         reference_dict[parent] = referenced_set
@@ -151,8 +152,12 @@ def _get_library_node_name(library_name):
 def output_parent_function_graph(rule_classification_data_bundle, library_list, export_method_dict):
     report_dict, reference_dict = rule_classification_data_bundle
 
+    all_methods = set(report_dict.keys())
+    for method_list in reference_dict.values():
+        all_methods.update(method_list)
+
     identifier_dict = {
-        parent: f"p{index}" for index, parent in enumerate(report_dict.keys())
+        parent: f"p{index}" for index, parent in enumerate(all_methods)
     }
 
     dot = Digraph(**_GRAPH_SETTINGS)
@@ -188,6 +193,8 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
         edge_attr={ "label": "includes"}
     ) as cluster_library:
         
+        library_name_list = [library.name for library in library_list]
+
         # Lind native API to libraries
         for library in library_list:
             # if not set(export_method_dict[library]).intersection(identifier_dict.keys):
@@ -195,7 +202,7 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
 
             # Create library node
             node_name = _get_library_node_name(library.name)
-            node_label = f"<<TABLE><TR><TD>{node_name}</TD></TR>"
+            node_label = f"<<TABLE><TR><TD><FONT color=\"black\">{library.name}</FONT></TD></TR>"
 
             for behavior in library.behaviors.keys():
                 node_label += f"<TR><TD>{behavior}</TD></TR>"
@@ -206,14 +213,7 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
 
             # Link imported libraries
             for imported in library.import_libraries:
-
-                is_exist = False
-                for exist in library_list:
-                    if imported == exist.name:
-                        is_exist = True
-                        break
-
-                if not is_exist:
+                if imported not in library_name_list:
                     continue
 
                 imported_name = _get_library_node_name(imported)
@@ -245,7 +245,8 @@ class ELFLibrary:
         result = subprocess.run(['elfparser-cli', '-f', path, '-p'], encoding='UTF-8', check=True, stdout=subprocess.PIPE)
         result_lines = result.stdout.splitlines()
 
-        ELFLibrary._parse_import_libraries(result_lines, self.import_libraries)
+        # ELFLibrary._parse_import_libraries(result_lines, self.import_libraries)
+        ELFLibrary._parse_export_methods_via_rz(path, self.import_libraries)
         ELFLibrary._parse_export_methods(result_lines, self.export_methods)
 
         self.path_list.append(path)
@@ -277,6 +278,12 @@ class ELFLibrary:
             raw_method = line[line.index('name=Java_')+len('name=Java_'):]
             method_pieces = raw_method.split('_')
 
-            class_name = 'L' + '/'.join(method_list[:-1]) + ';'
+            class_name = 'L' + '/'.join(method_pieces[:-1]) + ';'
             method_name = method_pieces[-1]
             method_list.append((class_name, method_name))
+
+    @staticmethod
+    def _parse_export_methods_via_rz(library_path, import_list):
+        rz = rzpipe.open(library_path,['-e','io.cache=true'])
+        import_list.extend(rz.cmdj("ilj"))
+
