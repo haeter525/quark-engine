@@ -3,6 +3,8 @@
 # See the file 'LICENSE' for copying permission.
 
 import functools
+import os
+from quark.utils.pprint import print_info
 import re
 from collections import defaultdict
 from os import PathLike
@@ -12,7 +14,7 @@ from typing import Dict, Generator, List, Optional, Set, Union
 
 from androguard.core.analysis.analysis import MethodAnalysis
 from androguard.core.bytecodes.dvm_types import Operand
-from androguard.misc import AnalyzeAPK, AnalyzeDex
+from androguard.misc import AnalyzeAPK, AnalyzeDex, get_default_session
 
 from quark.core.interface.baseapkinfo import BaseApkinfo
 from quark.core.struct.bytecodeobject import BytecodeObject
@@ -22,23 +24,40 @@ from quark.core.struct.methodobject import MethodObject
 class AndroguardImp(BaseApkinfo):
     """Information about apk based on androguard analysis"""
 
-    __slots__ = ("_tmp_dir", "apk", "dalvikvmformat", "analysis")
+    def __init__(self, apk_filepath: Union[str, PathLike], extra_library_list: List[PathLike] = []):
+        super().__init__(apk_filepath[0], "androguard")
 
-    def __init__(self, apk_filepath: Union[str, PathLike]):
-        super().__init__(apk_filepath, "androguard")
+        self._tmp_dir = tempfile.mkdtemp()
+        self._library_path_map = {}
 
         if self.ret_type == "APK":
             # return the APK, list of DalvikVMFormat, and Analysis objects
             self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(
-                apk_filepath
+                apk_filepath[0]
             )
         elif self.ret_type == "DEX":
             # return the sha256hash, DalvikVMFormat, and Analysis objects
-            _, _, self.analysis = AnalyzeDex(apk_filepath)
+            session = get_default_session()
+            self.analysis = None
+
+            for path in apk_filepath:
+                print_info(f"Loading dex...{path}")
+                with open(path, 'rb') as file:
+                    _, _, self.analysis = session.addDEX(path, file.read(), dx=self.analysis)            
         else:
             raise ValueError("Unsupported File type.")
 
-        self._tmp_dir = tempfile.mkdtemp()
+
+        for path in extra_library_list:
+            self._add_library(path)
+
+    def _add_library(self, library_path):
+        name = os.path.basename(library_path)
+        tmp_path = os.path.join(self._tmp_dir, name)
+
+        os.symlink(library_path, tmp_path)
+
+        self._library_path_map[library_path] = tmp_path
 
     @property
     def permissions(self) -> List[str]:
@@ -104,6 +123,7 @@ class AndroguardImp(BaseApkinfo):
             for _, call, _ in method_analysis.get_xref_from()
         }
 
+    @functools.lru_cache()
     def lowerfunc(self, method_object: MethodObject) -> Set[MethodObject]:
         method_analysis = method_object.cache
         return {
@@ -251,7 +271,7 @@ class AndroguardImp(BaseApkinfo):
 
         return result
 
-    @property
+    @functools.cached_property
     def class_hierarchy(self) -> Dict[str, Set[str]]:
         hierarchy_dict = defaultdict(set)
 
@@ -264,20 +284,27 @@ class AndroguardImp(BaseApkinfo):
         return hierarchy_dict
 
     def get_library_file(self, library_path: str) -> PathLike:
-        if library_path not in self.apk.get_files():
-            raise ValueError(f"Library not exist. ({library_path})")
+        if self.ret_type == 'APK':
+            if library_path not in self.apk.get_files():
+                raise ValueError(f"Library not exist. ({library_path})")
 
-        library_name = os.path.basename(library_path)
-        tmp_library_path = os.path.join(self._tmp_dir, library_name)
-        if not os.path.exists(tmp_library_path):
-            with open(tmp_library_path, "wb") as file:
+            if library_path in self._library_path_map:
+                return self._library_path_map[library_path]
+            
+            name = os.path.basename(library_path)
+            tmp_path = os.path.join(self._tmp_dir, name)
+            self._library_path_map[library_path] = tmp_path
+            with open(tmp_path, "wb") as file:
                 file.write(self.apk.get_file(library_path))
+                
+        elif library_path not in self._library_path_map:
+                raise ValueError(f"Library not exist. ({library_path})")
 
-        return tmp_library_path
+        return self._library_path_map[library_path]
 
     @property
     def native_libraries(self) -> Generator[str, None, None]:
-        if self.apk:
+        if self.ret_type == 'APK':
             yield from (
                 file
                 for file in self.apk.get_files()
@@ -285,7 +312,7 @@ class AndroguardImp(BaseApkinfo):
                 and os.path.splitext(file)[-1] == ".so"
             )
         else:
-            yield from ()
+            yield from self._library_path_map.keys()
 
     @staticmethod
     @functools.lru_cache

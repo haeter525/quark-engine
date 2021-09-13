@@ -127,6 +127,14 @@ logo()
     required=False,
     default=1,
 )
+@click.option(
+    "--native-library",
+    "native_library",
+    help="Extra Native Library to analysis",
+    type=click.Path(exists=True, file_okay=True, dir_okay=True),
+    default=None,
+    required=False,
+)
 def entry_point(
     summary,
     detail,
@@ -142,6 +150,7 @@ def entry_point(
     comparison,
     core_library,
     num_of_process,
+    native_library
 ):
     """Quark is an Obfuscation-Neglect Android Malware Scoring System"""
 
@@ -225,11 +234,20 @@ def entry_point(
 
         return
 
+    # Load extra library
+    if native_library:
+        native_library_list = [
+            os.path.join(native_library, file) for file in os.listdir(native_library) if file.endswith('.so')
+        ]
+    else:
+        native_library_list = []
+
     # Load APK
     data = (
+        # TODO - Update ParallelQuark to support multiple files, native libraries
         ParallelQuark(apk[0], core_library, num_of_process)
         if num_of_process > 1
-        else Quark(apk[0], core_library)
+        else Quark(apk, core_library, native_library_list)
     )
 
     if label:

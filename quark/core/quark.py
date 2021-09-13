@@ -40,16 +40,16 @@ MAX_SEARCH_LAYER = 3
 class Quark:
     """Quark module is used to check quark's five-stage theory"""
 
-    def __init__(self, apk, core_library="androguard"):
+    def __init__(self, apk, core_library="androguard", extra_library_list=[]):
         """
 
         :param apk: the filename of the apk.
         """
         core_library = core_library.lower()
         if core_library == "rizin":
-            self.apkinfo = RizinImp(apk)
+            self.apkinfo = RizinImp(apk, extra_library_list=extra_library_list)
         elif core_library == "androguard":
-            self.apkinfo = AndroguardImp(apk)
+            self.apkinfo = AndroguardImp(apk, extra_library_list=extra_library_list)
         else:
             raise ValueError(
                 f"Unsupported core library for Quark: {core_library}"
@@ -700,14 +700,14 @@ class Quark:
             for library in library_list
         }
 
-        export_method_list = []
+        export_method_set = set()
         for value in export_method_dict.values():
-            export_method_list.extend(value)
+            export_method_set.update(value)
 
         data_bundle = get_rule_classification_data(
             self.quark_analysis.call_graph_analysis_list,
             MAX_SEARCH_LAYER,
-            export_method_list,
+            export_method_set,
         )
 
         output_parent_function_table(data_bundle)

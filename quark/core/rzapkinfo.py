@@ -28,9 +28,11 @@ class RizinImp(BaseApkinfo):
     def __init__(
         self,
         apk_filepath: Union[str, PathLike],
+        extra_library_list: List[PathLike] = [],
         tmp_dir: Union[str, PathLike] = None,
     ):
-        super().__init__(apk_filepath, "rizin")
+        super().__init__(apk_filepath[0], "rizin")
+        # TODO - Support multiple dex files
 
         if self.ret_type == "DEX":
             self._tmp_dir = None
