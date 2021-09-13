@@ -6,7 +6,7 @@ import hashlib
 import os.path
 from abc import abstractmethod
 from os import PathLike
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, Generator, List, Optional, Set, Union
 
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
@@ -16,7 +16,9 @@ class BaseApkinfo:
 
     __slots__ = ["ret_type", "apk_filename", "apk_filepath", "core_library"]
 
-    def __init__(self, apk_filepath: Union[str, PathLike], core_library: str = "None"):
+    def __init__(
+        self, apk_filepath: Union[str, PathLike], core_library: str = "None"
+    ):
         with open(apk_filepath, "rb") as file:
             raw = file.read()
             self.ret_type = self._check_file_signature(raw)
@@ -67,7 +69,6 @@ class BaseApkinfo:
 
         :return: a list of all permissions
         """
-        pass
 
     @property
     @abstractmethod
@@ -77,7 +78,6 @@ class BaseApkinfo:
 
         :return: a set of all Android native APIs MethodObject
         """
-        pass
 
     @property
     @abstractmethod
@@ -87,7 +87,6 @@ class BaseApkinfo:
 
         :return: a set of all custom methods MethodObject
         """
-        pass
 
     @property
     def all_methods(self) -> Set[MethodObject]:
@@ -96,7 +95,6 @@ class BaseApkinfo:
 
         :return: a set of all method MethodObject
         """
-        pass
 
     @abstractmethod
     def find_method(
@@ -114,7 +112,6 @@ class BaseApkinfo:
         :param descriptor: the descriptor of the Android API
         :return: a generator of MethodObject
         """
-        pass
 
     @abstractmethod
     def upperfunc(self, method_object: MethodObject) -> Set[MethodObject]:
@@ -124,7 +121,6 @@ class BaseApkinfo:
         :param method_object: the MethodObject instance
         :return: a set of all xref from functions
         """
-        pass
 
     @abstractmethod
     def lowerfunc(self, method_object: MethodObject) -> Set[MethodObject]:
@@ -134,10 +130,11 @@ class BaseApkinfo:
         :param method_object: the MethodObject instance
         :return: a set of all xref from functions
         """
-        pass
 
     @abstractmethod
-    def get_method_bytecode(self, method_object: MethodObject) -> Set[MethodObject]:
+    def get_method_bytecode(
+        self, method_object: MethodObject
+    ) -> Set[MethodObject]:
         """
         Return the corresponding bytecode according to the
         given class name and method name.
@@ -145,7 +142,6 @@ class BaseApkinfo:
         :param method_object: the MethodObject instance
         :return: a generator of all bytecode instructions
         """
-        pass
 
     @abstractmethod
     def get_strings(self) -> str:
@@ -169,11 +165,19 @@ class BaseApkinfo:
         "second": "invoke-virtual v3, v0, v4, Lcom/google/progress/SMSHelper;->sendSms(Ljava/lang/String; Ljava/lang/String;)I"
         }
         """
+
+    @abstractmethod
+    def get_library_file(self, library_name: str) -> PathLike:
         pass
 
     @property
     @abstractmethod
     def class_hierarchy(self) -> Dict[str, Set[str]]:
+        pass
+
+    @property
+    @abstractmethod
+    def native_libraries(self) -> Generator[str, None, None]:
         pass
 
     @staticmethod

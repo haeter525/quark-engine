@@ -6,7 +6,9 @@ import functools
 import re
 from collections import defaultdict
 from os import PathLike
-from typing import Dict, List, Optional, Set, Union
+import os.path
+import tempfile
+from typing import Dict, Generator, List, Optional, Set, Union
 
 from androguard.core.analysis.analysis import MethodAnalysis
 from androguard.core.bytecodes.dvm_types import Operand
@@ -20,19 +22,23 @@ from quark.core.struct.methodobject import MethodObject
 class AndroguardImp(BaseApkinfo):
     """Information about apk based on androguard analysis"""
 
-    __slots__ = ("apk", "dalvikvmformat", "analysis")
+    __slots__ = ("_tmp_dir", "apk", "dalvikvmformat", "analysis")
 
     def __init__(self, apk_filepath: Union[str, PathLike]):
         super().__init__(apk_filepath, "androguard")
 
         if self.ret_type == "APK":
             # return the APK, list of DalvikVMFormat, and Analysis objects
-            self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(apk_filepath)
+            self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(
+                apk_filepath
+            )
         elif self.ret_type == "DEX":
             # return the sha256hash, DalvikVMFormat, and Analysis objects
             _, _, self.analysis = AnalyzeDex(apk_filepath)
         else:
             raise ValueError("Unsupported File type.")
+
+        self._tmp_dir = tempfile.mkdtemp()
 
     @property
     def permissions(self) -> List[str]:
@@ -71,13 +77,15 @@ class AndroguardImp(BaseApkinfo):
     @functools.lru_cache()
     def find_method(
         self,
-        class_name: Optional[str] = ".*",
-        method_name: Optional[str] = ".*",
-        descriptor: Optional[str] = ".*",
+        class_name: Optional[str] = None,
+        method_name: Optional[str] = None,
+        descriptor: Optional[str] = None,
     ) -> MethodObject:
-        regex_class_name = re.escape(class_name)
-        regex_method_name = f"^{re.escape(method_name)}$"
-        regex_descriptor = re.escape(descriptor)
+        regex_class_name = re.escape(class_name) if class_name else ".*"
+        regex_method_name = (
+            f"^{re.escape(method_name)}$" if method_name else ".*"
+        )
+        regex_descriptor = re.escape(descriptor) if descriptor else ".*"
 
         method_result = self.analysis.find_methods(
             classname=regex_class_name,
@@ -103,7 +111,9 @@ class AndroguardImp(BaseApkinfo):
             for _, call, offset in method_analysis.get_xref_to()
         }
 
-    def get_method_bytecode(self, method_object: MethodObject) -> Set[MethodObject]:
+    def get_method_bytecode(
+        self, method_object: MethodObject
+    ) -> Set[MethodObject]:
         method_analysis = method_object.cache
         try:
             for (
@@ -130,9 +140,13 @@ class AndroguardImp(BaseApkinfo):
                             break
 
                     if index_of_parameter_starts is not None:
-                        parameter = ins.get_operands()[index_of_parameter_starts]
+                        parameter = ins.get_operands()[
+                            index_of_parameter_starts
+                        ]
                         parameter = (
-                            parameter[2] if len(parameter) == 3 else parameter[1]
+                            parameter[2]
+                            if len(parameter) == 3
+                            else parameter[1]
                         )
 
                         for i in range(index_of_parameter_starts):
@@ -146,7 +160,9 @@ class AndroguardImp(BaseApkinfo):
                                 "v" + str(ins.get_operands()[i][1]),
                             )
 
-                    bytecode_obj = BytecodeObject(ins.get_name(), reg_list, parameter)
+                    bytecode_obj = BytecodeObject(
+                        ins.get_name(), reg_list, parameter
+                    )
 
                 yield bytecode_obj
         except AttributeError:
@@ -179,7 +195,9 @@ class AndroguardImp(BaseApkinfo):
         elif length_operands == 1:
             # Only one register
 
-            reg_list.append(f"v{instruction.get_operands()[length_operands - 1][1]}")
+            reg_list.append(
+                f"v{instruction.get_operands()[length_operands - 1][1]}"
+            )
 
             instruction_list.extend(reg_list)
 
@@ -244,6 +262,30 @@ class AndroguardImp(BaseApkinfo):
             )
 
         return hierarchy_dict
+
+    def get_library_file(self, library_path: str) -> PathLike:
+        if library_path not in self.apk.get_files():
+            raise ValueError(f"Library not exist. ({library_path})")
+
+        library_name = os.path.basename(library_path)
+        tmp_library_path = os.path.join(self._tmp_dir, library_name)
+        if not os.path.exists(tmp_library_path):
+            with open(tmp_library_path, "wb") as file:
+                file.write(self.apk.get_file(library_path))
+
+        return tmp_library_path
+
+    @property
+    def native_libraries(self) -> Generator[str, None, None]:
+        if self.apk:
+            yield from (
+                file
+                for file in self.apk.get_files()
+                if file.startswith("lib")
+                and os.path.splitext(file)[-1] == ".so"
+            )
+        else:
+            yield from ()
 
     @staticmethod
     @functools.lru_cache

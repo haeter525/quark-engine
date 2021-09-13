@@ -4,6 +4,7 @@
 
 import functools
 import logging
+import os
 import os.path
 import re
 import tempfile
@@ -13,6 +14,7 @@ from os import PathLike
 from typing import Dict, Generator, List, Optional, Set, Union
 
 import rzpipe
+from androguard.core.bytecodes.apk import FileNotPresent
 
 from quark.core.axmlreader import AxmlReader
 from quark.core.interface.baseapkinfo import BaseApkinfo
@@ -38,9 +40,17 @@ class RizinImp(BaseApkinfo):
             self._tmp_dir = tempfile.mkdtemp() if tmp_dir is None else tmp_dir
 
             with zipfile.ZipFile(self.apk_filepath) as apk:
+                native_libraries = filter(
+                    lambda f: os.path.splitext(f)[-1] == ".so", apk.namelist()
+                )
+                for library in native_libraries:
+                    apk.extract(os.path.basename(library), path=self._tmp_dir)
+
                 apk.extract("AndroidManifest.xml", path=self._tmp_dir)
 
-                self._manifest = os.path.join(self._tmp_dir, "AndroidManifest.xml")
+                self._manifest = os.path.join(
+                    self._tmp_dir, "AndroidManifest.xml"
+                )
 
                 dex_files = [
                     file
@@ -51,7 +61,9 @@ class RizinImp(BaseApkinfo):
                 for dex in dex_files:
                     apk.extract(dex, path=self._tmp_dir)
 
-                self._dex_list = [os.path.join(self._tmp_dir, dex) for dex in dex_files]
+                self._dex_list = [
+                    os.path.join(self._tmp_dir, dex) for dex in dex_files
+                ]
 
         else:
             raise ValueError("Unsupported File type.")
@@ -75,7 +87,9 @@ class RizinImp(BaseApkinfo):
                 continue
 
             full_name = json_obj["realname"]
-            class_name, method_descriptor = full_name.split(".method.", maxsplit=1)
+            class_name, method_descriptor = full_name.split(
+                ".method.", maxsplit=1
+            )
             class_name = class_name + ";"
 
             l_index = method_descriptor.index("(")
@@ -90,7 +104,9 @@ class RizinImp(BaseApkinfo):
 
             argument_string = re.sub(r"\[ ", "[", argument_string)
 
-            return_value = method_descriptor[method_descriptor.index(")") + 1 :]
+            return_value = method_descriptor[
+                method_descriptor.index(")") + 1 :
+            ]
             descriptor = argument_string + return_value
 
             is_imported = json_obj["is_imported"]
@@ -131,13 +147,19 @@ class RizinImp(BaseApkinfo):
 
     @property
     def custom_methods(self) -> Set[MethodObject]:
-        return {method for method in self.all_methods if not method.cache.is_imported}
+        return {
+            method
+            for method in self.all_methods
+            if not method.cache.is_imported
+        }
 
     @functools.cached_property
     def all_methods(self) -> Set[MethodObject]:
         method_set = set()
         for dex_index in range(self._number_of_dex):
-            for method_list in self._get_methods_classified(dex_index).values():
+            for method_list in self._get_methods_classified(
+                dex_index
+            ).values():
                 method_set.update(method_list)
 
         return method_set
@@ -177,7 +199,9 @@ class RizinImp(BaseApkinfo):
                 continue
 
             if "fcn_addr" in xref:
-                upperfunc_set.add(self._get_method_by_address(xref["fcn_addr"]))
+                upperfunc_set.add(
+                    self._get_method_by_address(xref["fcn_addr"])
+                )
             else:
                 logging.debug(
                     f"Key from was not found at searching"
@@ -239,7 +263,10 @@ class RizinImp(BaseApkinfo):
 
             string_detail_list = rz.cmdj("izzj")
             strings.update(
-                [string_detail["string"] for string_detail in string_detail_list]
+                [
+                    string_detail["string"]
+                    for string_detail in string_detail_list
+                ]
             )
 
         return strings
@@ -251,7 +278,9 @@ class RizinImp(BaseApkinfo):
         second_method: MethodObject,
     ) -> Dict[str, Union[BytecodeObject, str]]:
         def convert_bytecode_to_list(bytecode):
-            return [bytecode.mnemonic] + bytecode.registers + [bytecode.parameter]
+            return (
+                [bytecode.mnemonic] + bytecode.registers + [bytecode.parameter]
+            )
 
         cache = parent_method.cache
 
@@ -333,6 +362,25 @@ class RizinImp(BaseApkinfo):
 
         return hierarchy_dict
 
+    def get_library_file(self, library_name: str) -> PathLike:
+        library_path = os.path.join(self._tmp_dir, library_name)
+
+        if os.path.isfile(library_path):
+            return library_path
+        else:
+            raise FileNotPresent(library_path)
+
+    @property
+    def native_libraries(self) -> Generator[str, None, None]:
+        if self.ret_type == "DEX":
+            yield from ()
+
+        library_root_path = os.path.join(self._tmp_dir, "lib")
+        for dir_path, _, file in os.walk(library_root_path):
+            if os.path.splitext()[-1] == ".so":
+                realpath = os.path.join(dir_path, file)
+                yield os.path.relpath(realpath, self._tmp_dir)
+
     def _get_method_by_address(self, address: int) -> MethodObject:
         if address < 0:
             return None
@@ -382,7 +430,9 @@ class RizinImp(BaseApkinfo):
             try:
                 register_list = [int(arg[1:]) for arg in args]
             except ValueError:
-                raise ValueError(f"Cannot parse bytecode. Unknown smali {smali}.")
+                raise ValueError(
+                    f"Cannot parse bytecode. Unknown smali {smali}."
+                )
 
         register_list = [f"v{index}" for index in register_list]
 
