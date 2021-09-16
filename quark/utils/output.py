@@ -14,12 +14,12 @@ from prettytable import PrettyTable
 from quark.utils.colors import green, red
 
 _GRAPH_SETTINGS = {
-    "filename": "rules_classification",
-    "comment": "A reference tree for parent functions",
+    "filename": "behavior_map",
+    "comment": "A behavior map for parent functions",
     "format": "png",
     "graph_attr": {
         "center": "true",
-        "label": "Reference Tree of Rule Classification",
+        "label": "Behavior Map",
         "labelloc": "top",
         "rankdir": "LR",
         "fontsize": "24",
