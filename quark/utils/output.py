@@ -2,6 +2,7 @@
 # This file is part of Quark-Engine - https://github.com/quark-engine/quark-engine
 # See the file 'LICENSE' for copying permission.
 import re
+from typing import Any, List
 import rzpipe
 import os.path
 import subprocess
@@ -165,31 +166,27 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
     for parent, identifier in identifier_dict.items():
         descriptions = "\l".join(report_dict[parent]) + "\l"
 
+        graph_attr = {
+                    "label": _get_function_display_name(parent),
+                    "fontsize": "16",
+                }
+        if "native" in parent.access_flags:
+            graph_attr["fillcolor"]="darkorchid1"
+            graph_attr["penwidth"]="2"
+            graph_attr["style"]="filled"
+
         with dot.subgraph(
             name=f"cluster_{identifier}",
-            graph_attr={
-                "label": _get_function_display_name(parent),
-                "fontsize": "16",
-            },
+            graph_attr=graph_attr,
         ) as sub:
-            sub.node(identifier, label=descriptions)
+                sub.node(identifier, label=descriptions)
 
-    edge_list = []
-    for parent, identifier in identifier_dict.items():
-        edge_list.extend(
-            [
-                (identifier, identifier_dict[function])
-                for function in reference_dict[parent]
-            ]
-        )
-
-    dot.edges(edge_list)
 
     # Libraries
     with dot.subgraph(
         name="cluster_native_libraries",
-        graph_attr={ "label": "Native libraries" },
-        node_attr={ "shape": "none"},
+        graph_attr={ "style": "invis", "rank":"same"},
+        node_attr={ "shape": "none", "color": "seagreen"},
         edge_attr={ "label": "includes"}
     ) as cluster_library:
         
@@ -224,6 +221,17 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
                 if method in identifier_dict:
                     dot.edge(identifier_dict[method], node_name)
 
+    edge_list = []
+    for parent, identifier in identifier_dict.items():
+        edge_list.extend(
+            [
+                (identifier, identifier_dict[function])
+                for function in reference_dict[parent]
+            ]
+        )
+
+    dot.edges(edge_list)
+    
     dot.render()
 
 class ELFLibrary:
@@ -236,7 +244,7 @@ class ELFLibrary:
 
     def add_file(self, path):
         if not path.endswith('.so'):
-            raise ValueError(f"File not supported.")
+            raise ValueError(f"File {os.path.basename(path)} not supported.")
 
         result = subprocess.run(['elfparser-cli', '-f', path, '-c'], encoding='UTF-8', check=True, stdout=subprocess.PIPE)
         result_lines = result.stdout.splitlines()
@@ -287,3 +295,12 @@ class ELFLibrary:
         rz = rzpipe.open(library_path,['-e','io.cache=true'])
         import_list.extend(rz.cmdj("ilj"))
 
+class ELFDescriptor:
+    def describe_behavior(self, behavior_dict):
+        for category, found in behavior_dict.items():
+            if category in ["URL", "IP Addresses", "Shell", "HTTP"]:
+                count = len(found)
+                behavior_dict[category] = [f"Total {count} {category} found."]
+
+            elif category in ["File Path"]:
+                behavior_dict[category] = ["File Path {path} found.".format(path=path) for path in found]

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Tuple
 
 
 @dataclass(unsafe_hash=True)
@@ -10,7 +11,7 @@ class MethodObject(object):
     class_name: str
     name: str
     descriptor: str
-    access_flags: str = field(compare=False, default="")
+    access_flags: Tuple[str] = field(compare=False, default=None)
     cache: object = field(compare=False, default=None, repr=False)
 
     @property

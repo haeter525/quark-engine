@@ -337,7 +337,7 @@ class AndroguardImp(BaseApkinfo):
         method_analysis: MethodAnalysis,
     ) -> MethodObject:
         return MethodObject(
-            access_flags=method_analysis.access,
+            access_flags=method_analysis.access.split(' '),
             class_name=str(method_analysis.class_name),
             name=str(method_analysis.name),
             descriptor=str(method_analysis.descriptor),

@@ -25,6 +25,7 @@ from quark.utils.colors import (
 )
 from quark.utils.graph import call_graph
 from quark.utils.output import (
+    ELFDescriptor,
     ELFLibrary,
     get_rule_classification_data,
     output_parent_function_graph,
@@ -681,24 +682,21 @@ class Quark:
     def show_rule_classification(self):
         print_info("Rules Classification")
 
-        path_list = (
-            self.apkinfo.get_library_file(library_path)
-            for library_path in self.apkinfo.native_libraries
-        )
         library_dict = defaultdict(ELFLibrary)
-        for path in path_list:
-            library_name = os.path.basename(path)
+        for library_path in self.apkinfo.native_libraries:
+            path = self.apkinfo.get_library_file(library_path)
+            library_name = os.path.basename(library_path)
             library_dict[library_name].add_file(path)
 
         library_list = library_dict.values()
 
-        export_method_dict = {
-            library: [
-                self.apkinfo.find_method(class_name, method_name)
-                for class_name, method_name in library.export_methods
-            ]
-            for library in library_list
-        }
+        export_method_dict = {}
+        descriptor = ELFDescriptor()
+        for library in library_list:
+            descriptor.describe_behavior(library.behaviors)
+
+            method_list = (self.apkinfo.find_method(class_name, method_name) for class_name, method_name in library.export_methods)
+            export_method_dict[library] = [method for method in method_list if method]
 
         export_method_set = set()
         for value in export_method_dict.values():
@@ -709,6 +707,16 @@ class Quark:
             MAX_SEARCH_LAYER,
             export_method_set,
         )
+
+        report_dict, reference_dict = data_bundle
+        called_export_method_set = set()
+        for _, called_set in reference_dict.items():
+            called_export_method_set.update(export_method_set.intersection(called_set))
+        
+        for library, export_method_list in export_method_dict.items():
+            method_set = called_export_method_set.intersection(set(export_method_list))
+            for method in method_set:
+                report_dict[method] = {f"Implemented by {library.name}"}
 
         output_parent_function_table(data_bundle)
         output_parent_function_json(data_bundle)
