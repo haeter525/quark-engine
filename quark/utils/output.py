@@ -171,9 +171,7 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
                     "fontsize": "16",
                 }
         if "native" in parent.access_flags:
-            graph_attr["fillcolor"]="darkorchid1"
-            graph_attr["penwidth"]="2"
-            graph_attr["style"]="filled"
+            graph_attr['bgcolor'] = "gray92"
 
         with dot.subgraph(
             name=f"cluster_{identifier}",
@@ -186,7 +184,7 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
     with dot.subgraph(
         name="cluster_native_libraries",
         graph_attr={ "style": "invis", "rank":"same"},
-        node_attr={ "shape": "none", "color": "seagreen"},
+        node_attr={ "shape": "none"},
         edge_attr={ "label": "includes"}
     ) as cluster_library:
         
@@ -199,7 +197,7 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
 
             # Create library node
             node_name = _get_library_node_name(library.name)
-            node_label = f"<<TABLE><TR><TD><FONT color=\"black\">{library.name}</FONT></TD></TR>"
+            node_label = f"<<TABLE BGCOLOR=\"gray92\"><TR><TD><FONT color=\"black\">{library.name}</FONT></TD></TR>"
 
             for behavior in library.behaviors.keys():
                 node_label += f"<TR><TD>{behavior}</TD></TR>"
