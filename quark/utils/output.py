@@ -199,8 +199,9 @@ def output_parent_function_graph(rule_classification_data_bundle, library_list, 
             node_name = _get_library_node_name(library.name)
             node_label = f"<<TABLE BGCOLOR=\"gray92\"><TR><TD><FONT color=\"black\">{library.name}</FONT></TD></TR>"
 
-            for behavior in library.behaviors.keys():
-                node_label += f"<TR><TD>{behavior}</TD></TR>"
+            for behavior, descriptions in library.behaviors.items():
+                for description in descriptions:
+                    node_label += f"<TR><TD>{description}</TD></TR>"
 
             node_label += '</TABLE>>'
 
@@ -244,16 +245,22 @@ class ELFLibrary:
         if not path.endswith('.so'):
             raise ValueError(f"File {os.path.basename(path)} not supported.")
 
-        result = subprocess.run(['elfparser-cli', '-f', path, '-c'], encoding='UTF-8', check=True, stdout=subprocess.PIPE)
-        result_lines = result.stdout.splitlines()
-        ELFLibrary._parse_behaviors(result_lines, self.behaviors)
+        try:
+            result = subprocess.run(['elfparser-cli', '-f', path, '-c'], encoding='UTF-8', check=True, stdout=subprocess.PIPE)
+            result_lines = result.stdout.splitlines()
+            ELFLibrary._parse_behaviors(result_lines, self.behaviors)   
+        except UnicodeDecodeError as e:
+            print(e)
 
-        result = subprocess.run(['elfparser-cli', '-f', path, '-p'], encoding='UTF-8', check=True, stdout=subprocess.PIPE)
-        result_lines = result.stdout.splitlines()
+        try:
+            result = subprocess.run(['elfparser-cli', '-f', path, '-p'], encoding='UTF-8', check=True, stdout=subprocess.PIPE)
+            result_lines = result.stdout.splitlines()
 
-        # ELFLibrary._parse_import_libraries(result_lines, self.import_libraries)
-        ELFLibrary._parse_export_methods_via_rz(path, self.import_libraries)
-        ELFLibrary._parse_export_methods(result_lines, self.export_methods)
+            # ELFLibrary._parse_import_libraries(result_lines, self.import_libraries)
+            ELFLibrary._parse_import_libraries_via_rz(path, self.import_libraries)
+            ELFLibrary._parse_export_methods(result_lines, self.export_methods)
+        except UnicodeDecodeError as e:
+            print(e)
 
         self.path_list.append(path)
 
@@ -289,7 +296,7 @@ class ELFLibrary:
             method_list.append((class_name, method_name))
 
     @staticmethod
-    def _parse_export_methods_via_rz(library_path, import_list):
+    def _parse_import_libraries_via_rz(library_path, import_list):
         rz = rzpipe.open(library_path,['-e','io.cache=true'])
         import_list.extend(rz.cmdj("ilj"))
 
