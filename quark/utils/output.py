@@ -3,6 +3,7 @@
 # See the file 'LICENSE' for copying permission.
 import re
 from typing import Any, List
+import html
 import rzpipe
 import os.path
 import subprocess
@@ -303,9 +304,10 @@ class ELFLibrary:
 class ELFDescriptor:
     def describe_behavior(self, behavior_dict):
         for category, found in behavior_dict.items():
-            if category in ["URL", "IP Addresses", "Shell", "HTTP"]:
-                count = len(found)
-                behavior_dict[category] = [f"Total {count} {category} found."]
+            # if category in ["URL", "IP Addresses", "Shell", "HTTP"]:
+            #     count = len(found)
+            #     behavior_dict[category] = [f"Total {count} {category} found."]
 
-            elif category in ["File Path"]:
-                behavior_dict[category] = ["File Path {path} found.".format(path=path) for path in found]
+            # elif category in ["File Path", "URL", "IP Addresses", "Shell", "HTTP"]:
+            # TODO - Get rid of the following "found" word in six categories.
+            behavior_dict[category] = ["{category} \"{value}\" found.".format(value=html.escape(value), category=html.escape(category)) for value in found]
