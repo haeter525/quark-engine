@@ -1,3 +1,20 @@
+quark-engine (21.10.2-0kali1) kali-dev; urgency=medium
+
+  * New Feat
+    - Quark-Engine can detect APIs in the extended classes now. (#247)
+    - Rules can write into an array to reduce the number of files and IO. (#248)
+    - Graph data can be dump in JSON format. (#250)
+    - Improve the detail report and JSON report when rules reached 60%. (#254)
+    - Add FAQ page and Organization page into the document. (#241, #253, #255)
+
+  * Bugs fixed
+    - Add hints when using freshquark and specifying rules. (#244)
+    - Reduce file IO on loading rules. (#248)
+    - Spaces between arguments in rules are no longer needed. (#249)
+  * Dependency update
+    - Update pillow from 8.3.1 to 8.3.2. (#246)
+
+ -- ShengFeng Lu <cindejze412@gmail.com>  Wed, 6 Oct 2021 21:34:00 +0800
 quark-engine (21.4.3-0kali1) kali-dev; urgency=medium
 
   * Initial release
