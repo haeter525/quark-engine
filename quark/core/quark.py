@@ -334,7 +334,7 @@ class Quark:
         for method in potential_method_list:
             current_class_set = {method.class_name}
 
-            while not current_class_set.intersection(
+            while current_class_set and not current_class_set.intersection(
                 {class_name, "Ljava/lang/Object;"}
             ):
                 next_class_set = set()
@@ -424,10 +424,10 @@ class Quark:
                 )
 
                 if not first_api_xref_from:
-                    print_warning(f"Unable to detect the xrefs, skip the scan for {first_api}")
+                    print_warning(f"Unable to find the upperfunc of {first_api}")
                     continue
                 if not second_api_xref_from:
-                    print_warning(f"Unable to detect the xrefs, skip the scan for {second_api}")
+                    print_warning(f"Unable to find the upperfunc of{second_api}")
                     continue
 
                 mutual_parent_function_list = self.find_intersection(
