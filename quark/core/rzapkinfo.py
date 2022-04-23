@@ -20,7 +20,7 @@ from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
 from quark.utils.tools import descriptor_to_androguard_format, remove_dup_list
 
-RizinCache = namedtuple("rizin_cache", "address dexindex is_imported")
+RizinCache = namedtuple("rizin_cache", "address is_imported")
 
 PRIMITIVE_TYPE_MAPPING = {
     "void": "V",
@@ -45,6 +45,8 @@ class RizinImp(BaseApkinfo):
     ):
         super().__init__(apk_filepath, "rizin")
 
+        self._binary_path = apk_filepath
+
         if self.ret_type == "DEX":
             self._tmp_dir = None
             self._dex_list = [apk_filepath]
@@ -55,28 +57,21 @@ class RizinImp(BaseApkinfo):
             with zipfile.ZipFile(self.apk_filepath) as apk:
                 apk.extract("AndroidManifest.xml", path=self._tmp_dir)
 
-                self._manifest = os.path.join(self._tmp_dir, "AndroidManifest.xml")
-
-                dex_files = [
-                    file
-                    for file in apk.namelist()
-                    if file.startswith("classes") and file.endswith(".dex")
-                ]
-
-                for dex in dex_files:
-                    apk.extract(dex, path=self._tmp_dir)
-
-                self._dex_list = [os.path.join(self._tmp_dir, dex) for dex in dex_files]
+                self._manifest = os.path.join(
+                    self._tmp_dir, "AndroidManifest.xml"
+                )
 
         else:
             raise ValueError("Unsupported File type.")
 
-        self._number_of_dex = len(self._dex_list)
-
     @functools.lru_cache
-    def _get_rz(self, index):
-        rz = rzpipe.open(self._dex_list[index])
+    def _get_rz(self):
+        if self.ret_type == "DEX":
+            rz = rzpipe.open(self._binary_path)
+        elif self.ret_type == "APK":
+            rz = rzpipe.open(f"apk://{self._binary_path}")
         rz.cmd("aa")
+
         return rz
 
     def _convert_type_to_type_signature(self, raw_type: str):
@@ -109,7 +104,7 @@ class RizinImp(BaseApkinfo):
             raw_str = raw_str.replace(c, "_")
         return raw_str
 
-    def _parse_method_from_isj_obj(self, json_obj, dexindex):
+    def _parse_method_from_isj_obj(self, json_obj):
         if json_obj.get("type") not in ["FUNC", "METH"]:
             return None
 
@@ -175,7 +170,7 @@ class RizinImp(BaseApkinfo):
                 class_name="",
                 name="clone",
                 descriptor="()Ljava/lang/Object;",
-                cache=RizinCache(json_obj["vaddr"], dexindex, is_imported),
+                cache=RizinCache(json_obj["vaddr"], is_imported),
             )
             return method
 
@@ -205,19 +200,19 @@ class RizinImp(BaseApkinfo):
             class_name=class_name,
             name=method_name,
             descriptor=descriptor,
-            cache=RizinCache(json_obj["vaddr"], dexindex, is_imported),
+            cache=RizinCache(json_obj["vaddr"], is_imported),
         )
 
         return method
 
     @functools.lru_cache
-    def _get_methods_classified(self, dexindex):
-        rz = self._get_rz(dexindex)
+    def _get_methods_classified(self):
+        rz = self._get_rz()
 
         method_json_list = rz.cmdj("isj")
         method_dict = defaultdict(list)
         for json_obj in method_json_list:
-            method = self._parse_method_from_isj_obj(json_obj, dexindex)
+            method = self._parse_method_from_isj_obj(json_obj)
 
             if method:
                 method_dict[method.class_name].append(method)
@@ -259,9 +254,8 @@ class RizinImp(BaseApkinfo):
     @functools.cached_property
     def all_methods(self) -> Set[MethodObject]:
         method_set = set()
-        for dex_index in range(self._number_of_dex):
-            for method_list in self._get_methods_classified(dex_index).values():
-                method_set.update(method_list)
+        for method_list in self._get_methods_classified().values():
+            method_set.update(method_list)
 
         return method_set
 
@@ -276,21 +270,15 @@ class RizinImp(BaseApkinfo):
                 not descriptor or descriptor == method.descriptor
             )
 
-        dex_list = range(self._number_of_dex)
-
-        for dex_index in dex_list:
-            method_dict = self._get_methods_classified(dex_index)
-            filtered_methods = filter(method_filter, method_dict[class_name])
-            try:
-                return next(filtered_methods)
-            except StopIteration:
-                continue
+        method_dict = self._get_methods_classified()
+        filtered_methods = filter(method_filter, method_dict[class_name])
+        return next(filtered_methods, None)
 
     @functools.lru_cache
     def upperfunc(self, method_object: MethodObject) -> Set[MethodObject]:
         cache = method_object.cache
 
-        r2 = self._get_rz(cache.dexindex)
+        r2 = self._get_rz()
 
         xrefs = r2.cmdj(f"axtj @ {cache.address}")
 
@@ -320,7 +308,7 @@ class RizinImp(BaseApkinfo):
     def lowerfunc(self, method_object: MethodObject) -> Set[MethodObject]:
         cache = method_object.cache
 
-        rz = self._get_rz(cache.dexindex)
+        rz = self._get_rz()
 
         instruct_flow = rz.cmdj(f"pdfj @ {cache.address}")["ops"]
 
@@ -354,7 +342,7 @@ class RizinImp(BaseApkinfo):
 
         if not cache.is_imported:
 
-            rz = self._get_rz(cache.dexindex)
+            rz = self._get_rz()
 
             instruct_flow = rz.cmdj(f"pdfj @ {cache.address}")["ops"]
 
@@ -363,16 +351,11 @@ class RizinImp(BaseApkinfo):
                     yield self._parse_smali(ins["disasm"])
 
     def get_strings(self) -> Set[str]:
-        strings = set()
-        for dex_index in range(self._number_of_dex):
-            rz = self._get_rz(dex_index)
 
-            string_detail_list = rz.cmdj("izzj")
-            strings.update(
-                [string_detail["string"] for string_detail in string_detail_list]
-            )
+        rz = self._get_rz()
+        string_detail_list = rz.cmdj("izzj")
 
-        return strings
+        return {string_obj["string"] for string_obj in string_detail_list}
 
     def get_wrapper_smali(
         self,
@@ -407,7 +390,7 @@ class RizinImp(BaseApkinfo):
         if cache.is_imported:
             return {}
 
-        rz = self._get_rz(cache.dexindex)
+        rz = self._get_rz()
 
         instruction_flow = rz.cmdj(f"pdfj @ {cache.address}")["ops"]
 
@@ -445,16 +428,14 @@ class RizinImp(BaseApkinfo):
     def superclass_relationships(self) -> Dict[str, Set[str]]:
         hierarchy_dict = defaultdict(set)
 
-        for dex_index in range(self._number_of_dex):
+        rz = self._get_rz()
 
-            rz = self._get_rz(dex_index)
+        class_info_list = rz.cmdj("icj")
+        for class_info in class_info_list:
+            class_name = class_info["classname"]
+            super_class = class_info["super"]
 
-            class_info_list = rz.cmdj("icj")
-            for class_info in class_info_list:
-                class_name = class_info["classname"]
-                super_class = class_info["super"]
-
-                hierarchy_dict[class_name].add(super_class)
+            hierarchy_dict[class_name].add(super_class)
 
         return hierarchy_dict
 
@@ -462,27 +443,24 @@ class RizinImp(BaseApkinfo):
     def subclass_relationships(self) -> Dict[str, Set[str]]:
         hierarchy_dict = defaultdict(set)
 
-        for dex_index in range(self._number_of_dex):
+        rz = self._get_rz()
 
-            rz = self._get_rz(dex_index)
+        class_info_list = rz.cmdj("icj")
+        for class_info in class_info_list:
+            class_name = class_info["classname"]
+            super_class = class_info["super"]
 
-            class_info_list = rz.cmdj("icj")
-            for class_info in class_info_list:
-                class_name = class_info["classname"]
-                super_class = class_info["super"]
-
-                hierarchy_dict[super_class].add(class_name)
+            hierarchy_dict[super_class].add(class_name)
 
         return hierarchy_dict
 
     def _get_method_by_address(self, address: int) -> MethodObject:
-        dexindex = 0
 
-        rz = self._get_rz(dexindex)
+        rz = self._get_rz()
         json_array = rz.cmdj(f"is.j @ {address}")
 
         if json_array:
-            return self._parse_method_from_isj_obj(json_array[0], dexindex)
+            return self._parse_method_from_isj_obj(json_array[0])
         else:
             return None
 
