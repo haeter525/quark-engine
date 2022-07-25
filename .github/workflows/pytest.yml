@@ -43,6 +43,10 @@ jobs:
       run: |
           pipenv install --dev
           pipenv install coveralls codecov pytest-cov --skip-lock
+
+          # Install click >= 8.x for CLI supports
+          pipenv install click==8.0.3
+          
           pipenv run pytest --cov=./
 
     - name: Upload coverage to Codecov
