@@ -23,12 +23,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pipenv rzpipe meson==0.62.0 ninja coverage
+        pip install pytest pipenv rzpipe meson==0.62.0 ninja coverage frida-tools ciphey
         sudo apt-get install -y ninja-build
         
         # Install graphviz
         sudo apt-get -y install graphviz
-        
         
         # Install Rizin
         sudo git clone --branch v0.3.4 https://github.com/rizinorg/rizin /opt/rizin/
