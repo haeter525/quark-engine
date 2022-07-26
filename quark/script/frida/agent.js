@@ -3,17 +3,17 @@
 // See the file 'LICENSE' for copying permission.
 
 /*global Java, send, rpc*/
-function watchMethodImpl(method, methodName, overloadFilter, printArgs) {
-    const argumentTypes = method.argumentTypes.map((arg) => arg.className);
+function quarkScriptWatchMethodImpl(methodObj, fullNameStr, overloadFilter, printArgs) {
+    const argumentTypes = methodObj.argumentTypes.map((arg) => arg.className);
     if (argumentTypes.join(",") !== overloadFilter) {
         return null;
     }
-
-    method.implementation = function () {
+    
+    methodObj.implementation = function () {
         let result = {
             "type": "captureInvocation",
             "callee": [
-                methodName, overloadFilter
+                fullNameStr, overloadFilter
             ]
         };
 
@@ -27,7 +27,7 @@ function watchMethodImpl(method, methodName, overloadFilter, printArgs) {
             result["paramValues"] = argumentValues;
         }
 
-        const returnValue = method.apply(this, arguments);
+        const returnValue = methodObj.apply(this, arguments);
         send(JSON.stringify(result));
 
         return returnValue;
@@ -36,14 +36,14 @@ function watchMethodImpl(method, methodName, overloadFilter, printArgs) {
     return null;
 }
 
-function quarkScriptWatchMethod(methodName, overloadFilter, printArgs) {
-    if (!methodName) {
+function quarkScriptWatchMethod(fullNameStr, overloadFilter, printArgs) {
+    if ( fullNameStr == null ) {
         return;
     }
 
-    const lastsperatorIndex = methodName.lastIndexOf(".");
-    const clazzName = methodName.substring(0, lastsperatorIndex);
-    const methodName = methodName.substring(lastsperatorIndex + 1);
+    const lastsperatorIndex = fullNameStr.lastIndexOf(".");
+    const clazzName = fullNameStr.substring(0, lastsperatorIndex);
+    const methodName = fullNameStr.substring(lastsperatorIndex + 1);
 
     if (overloadFilter == null) {
         overloadFilter = "";
@@ -55,7 +55,7 @@ function quarkScriptWatchMethod(methodName, overloadFilter, printArgs) {
             const result = {
                 "type": "HookFailed",
                 "callee": [
-                    methodName, overloadFilter
+                    fullNameStr, overloadFilter
                 ]
             };
 
@@ -63,10 +63,10 @@ function quarkScriptWatchMethod(methodName, overloadFilter, printArgs) {
             return;
         }
 
-        targetClazz[`${methodName}`].overloads.forEach((method) =>
-            watchMethodImpl(method, methodName, overloadFilter, printArgs)
+        targetClazz[`${methodName}`].overloads.forEach((m) =>
+            quarkScriptWatchMethodImpl(m, fullNameStr, overloadFilter, printArgs)
         );
     });
 }
 
-rpc.exports["hookMethod"] = (method, overloadFilter, printArgs) => quarkScriptWatchMethod(method, overloadFilter, printArgs);
+rpc.exports["hookMethod"] = (methodName, overloadFilter, printArgs) => quarkScriptWatchMethod(methodName, overloadFilter, printArgs);
