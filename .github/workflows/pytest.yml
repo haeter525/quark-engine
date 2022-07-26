@@ -38,6 +38,9 @@ jobs:
         sudo ldconfig -v
         cd -
         
+    - name: Show dependencies
+      run: |
+          pipenv graph
         
     - name: Test with pytest
       run: |
