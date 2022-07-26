@@ -52,7 +52,7 @@ jobs:
 
     - name: Install click >= 8.x for CLI supports
       run: |
-        pipenv install --skip-lock click==8.1.3
+        pipenv install --skip-lock click==8.1.0
 
     # Runs a set of commands using the quark-engine
     - name: Run a multi-line script
