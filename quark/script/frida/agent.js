@@ -5,33 +5,29 @@
 /*global Java, send, rpc*/
 function quarkScriptWatchMethodImpl(methodObj, fullNameStr, overloadFilter, printArgs) {
     const argumentTypes = methodObj.argumentTypes.map((arg) => arg.className);
-    if (argumentTypes.join(",") !== overloadFilter) {
-        return null;
-    }
+    if (argumentTypes.join(",") == overloadFilter) {
+        methodObj.implementation = function () {
+            let result = {
+                "type": "captureInvocation",
+                "callee": [
+                    fullNameStr, overloadFilter
+                ]
+            };
     
-    methodObj.implementation = function () {
-        let result = {
-            "type": "captureInvocation",
-            "callee": [
-                fullNameStr, overloadFilter
-            ]
-        };
-
-        if (printArgs && argumentTypes.length > 0) {
-            // Arguments
-            const argumentValues = [];
-            for (const arg of arguments) {
-                argumentValues.push((arg || "(none)").toString());
+            if (printArgs && argumentTypes.length > 0) {
+                // Arguments
+                result["paramValues"] = [];
+                for (const arg of arguments) {
+                    result["paramValues"].push((arg || "(none)").toString());
+                }
             }
-
-            result["paramValues"] = argumentValues;
-        }
-
-        const returnValue = methodObj.apply(this, arguments);
-        send(JSON.stringify(result));
-
-        return returnValue;
-    };
+    
+            const returnValue = methodObj.apply(this, arguments);
+            send(JSON.stringify(result));
+    
+            return returnValue;
+        };
+    }
 
     return null;
 }
