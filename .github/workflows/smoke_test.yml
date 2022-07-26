@@ -39,9 +39,6 @@ jobs:
         python -m pip install pipenv
         pipenv install --skip-lock --dev
 
-        # Install click >= 8.x for CLI supports
-        pipenv install click==8.0.3
-
     - run: sudo apt-get -y install graphviz
       if: matrix.os == 'ubuntu-latest'
     - run: brew install graphviz
@@ -52,6 +49,10 @@ jobs:
     - name: Download rule from https://github.com/quark-engine/quark-rules
       run: |
         pipenv run freshquark
+
+    - name: Install click >= 8.x for CLI supports
+      run: |
+        pipenv install --skip-lock click==8.0.3
 
     # Runs a set of commands using the quark-engine
     - name: Run a multi-line script
