@@ -37,7 +37,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install pipenv
-        pipenv install --skip-lock --dev
+        python -m pipenv install --skip-lock --dev
 
     - run: sudo apt-get -y install graphviz
       if: matrix.os == 'ubuntu-latest'
@@ -72,9 +72,9 @@ jobs:
     - name: Check Accuracy
       shell: bash
       run: |
-        echo "Ahmyth_RESULT=$(pipenv run quark -a apk-malware-samples/Ahmyth.apk -s -t 100 | grep 100% | wc -l | awk '{print $1}')" >> $GITHUB_ENV
-        echo "a4db_RESULT=$(pipenv run quark -a apk-malware-samples/13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk -s -t 100 | grep 100% | wc -l | awk '{print $1}')" >> $GITHUB_ENV
-        echo "e273e_RESULT=$(pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -t 100 | grep 100% | wc -l | awk '{print $1}')" >> $GITHUB_ENV
+        echo "Ahmyth_RESULT=$(python -m pipenv run quark -a apk-malware-samples/Ahmyth.apk -s -t 100 | grep 100% | wc -l | awk '{print $1}')" >> $GITHUB_ENV
+        echo "a4db_RESULT=$(python -m pipenv run quark -a apk-malware-samples/13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk -s -t 100 | grep 100% | wc -l | awk '{print $1}')" >> $GITHUB_ENV
+        echo "e273e_RESULT=$(python -m pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -t 100 | grep 100% | wc -l | awk '{print $1}')" >> $GITHUB_ENV
 
     - name: Check Ahmyt Result
       shell: bash
