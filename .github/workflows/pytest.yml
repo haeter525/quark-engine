@@ -41,10 +41,10 @@ jobs:
     - name: Test with pytest
       run: |
         python -m pipenv install --dev
-        python -m pipenv install coveralls codecov pytest-cov 
+        python -m pipenv install coveralls codecov pytest-cov --skip-lock
 
         # Install click >= 8.x for CLI supports
-        python -m pipenv install click==8.1.1 
+        python -m pipenv install click==8.1.1 --skip-lock
 
         python -m pipenv graph
 
