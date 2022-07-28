@@ -44,7 +44,7 @@ jobs:
           pipenv install coveralls codecov pytest-cov --skip-lock
 
           # Install click >= 8.x for CLI supports
-          pipenv install click==8.1.0 --skip-lock
+          pipenv install click==8.1.1 --skip-lock
           
           pipenv graph
 
