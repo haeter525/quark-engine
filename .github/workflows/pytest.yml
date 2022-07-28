@@ -40,15 +40,16 @@ jobs:
         
     - name: Test with pytest
       run: |
-        python -m pipenv install --dev
-        python -m pipenv install coveralls codecov pytest-cov --skip-lock
+        python setup.py build
+        python setup.py install
+        python -m pip install coveralls codecov pytest-cov
 
         # Install click >= 8.x for CLI supports
-        python -m pipenv install click==8.1.2 --skip-lock
+        python -m pip install click==8.1.2
 
-        python -m pipenv graph
+        pip list
 
-        python -m pipenv run pytest --cov=./
+        pytest --cov=./
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
