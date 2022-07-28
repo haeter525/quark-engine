@@ -52,7 +52,7 @@ jobs:
 
     - name: Install click >= 8.x for CLI supports
       run: |
-        python -m pipenv install --skip-lock click==8.1.1
+        python -m pipenv install --skip-lock click==8.1.2
 
     - name: Show dependencies
       run: |
