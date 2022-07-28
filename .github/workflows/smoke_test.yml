@@ -48,26 +48,26 @@ jobs:
     # Download the latest rule set
     - name: Download rule from https://github.com/quark-engine/quark-rules
       run: |
-        pipenv run freshquark
+        python -m pipenv run freshquark
 
     - name: Install click >= 8.x for CLI supports
       run: |
-        pipenv install --skip-lock click==8.1.1
+        python -m pipenv install --skip-lock click==8.1.1
 
     - name: Show dependencies
       run: |
-        pipenv graph
+        python -m pipenv graph
 
     # Runs a set of commands using the quark-engine
     - name: Run a multi-line script
       run: |
-        pipenv run quark --help
+        python -m pipenv run quark --help
         git clone https://github.com/quark-engine/apk-malware-samples
-        pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s
-        pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d
-        pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -g
-        pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d -g
-        pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -c
+        python -m pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s
+        python -m pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d
+        python -m pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -g
+        python -m pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d -g
+        python -m pipenv run quark -a apk-malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -c
 
     - name: Check Accuracy
       shell: bash

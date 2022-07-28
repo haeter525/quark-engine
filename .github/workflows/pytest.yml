@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pipenv rzpipe meson==0.62.0 ninja coverage frida-tools ciphey
+        python -m pip install pytest pipenv rzpipe meson==0.62.0 ninja coverage frida-tools ciphey
         sudo apt-get install -y ninja-build
         
         # Install graphviz
@@ -40,15 +40,15 @@ jobs:
         
     - name: Test with pytest
       run: |
-          pipenv install --dev
-          pipenv install coveralls codecov pytest-cov --skip-lock
+        python -m pipenv install --dev
+        python -m pipenv install coveralls codecov pytest-cov --skip-lock
 
-          # Install click >= 8.x for CLI supports
-          pipenv install click==8.1.1 --skip-lock
-          
-          pipenv graph
+        # Install click >= 8.x for CLI supports
+        python -m pipenv install click==8.1.1 --skip-lock
 
-          pipenv run pytest --cov=./
+        python -m pipenv graph
+
+        python -m pipenv run pytest --cov=./
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
