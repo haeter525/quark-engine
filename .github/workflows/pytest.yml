@@ -38,10 +38,6 @@ jobs:
         sudo ldconfig -v
         cd -
         
-    - name: Show dependencies
-      run: |
-          pipenv graph
-        
     - name: Test with pytest
       run: |
           pipenv install --dev
@@ -50,6 +46,8 @@ jobs:
           # Install click >= 8.x for CLI supports
           pipenv install click==8.1.0 --skip-lock
           
+          pipenv graph
+
           pipenv run pytest --cov=./
 
     - name: Upload coverage to Codecov

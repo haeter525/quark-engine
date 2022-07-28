@@ -56,7 +56,7 @@ jobs:
 
     - name: Show dependencies
       run: |
-          pipenv graph
+        pipenv graph
 
     # Runs a set of commands using the quark-engine
     - name: Run a multi-line script
