@@ -200,6 +200,16 @@ class Quark:
         """
         pyeval = PyEval(self.apkinfo)
 
+        numberOfRegister = self.apkinfo.get_number_of_registers_used_by(method)
+        numberOfParamRegister = (
+            self.apkinfo.get_number_of_registers_for_parameters(method)
+        )
+
+        startRegisterIndex = numberOfRegister - numberOfParamRegister
+        for regIndex in range(startRegisterIndex, numberOfRegister):
+            initialRegister = ["const", f"v{regIndex}", f"v{regIndex}"]
+            pyeval.eval[initialRegister[0]](initialRegister)
+
         for bytecode_obj in self.apkinfo.get_method_bytecode(method):
             # ['new-instance', 'v4', Lcom/google/progress/SMSHelper;]
             instruction = [bytecode_obj.mnemonic]

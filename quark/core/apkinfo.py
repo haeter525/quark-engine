@@ -68,6 +68,13 @@ class AndroguardImp(BaseApkinfo):
             for meth_analysis in self.analysis.get_methods()
         }
 
+    @property
+    def package_name(self) -> str:
+        # TODO - Docstring
+        # TODO - Test
+
+        return self.apk.get_package()
+
     @functools.lru_cache()
     def find_method(
         self,
@@ -103,7 +110,28 @@ class AndroguardImp(BaseApkinfo):
             for _, call, offset in method_analysis.get_xref_to()
         }
 
-    def get_method_bytecode(self, method_object: MethodObject) -> Set[MethodObject]:
+    def get_number_of_registers_used_by(
+        self, method_object: MethodObject
+    ) -> int:
+        # TODO - Docstring
+        # TODO - Test
+        # TODO - need an implement for Rizin, too.
+        method_analysis = method_object.cache
+        method_code = method_analysis.code
+
+        return method_code.get_registers_size()
+
+    def get_number_of_registers_for_parameters(
+        self, method_object: MethodObject
+    ) -> int:
+        method_analysis = method_object.cache
+        method_code = method_analysis.code
+
+        return method_code.get_ins_size()
+
+    def get_method_bytecode(
+        self, method_object: MethodObject
+    ) -> Set[MethodObject]:
         method_analysis = method_object.cache
         try:
             for (

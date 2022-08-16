@@ -8,6 +8,7 @@
 
 import logging
 from datetime import datetime
+from typing import List
 
 from quark import config
 from quark.core.struct.registerobject import RegisterObject
@@ -69,6 +70,15 @@ class PyEval:
             "const-wide/32": self.CONST_WIDE_THIRTY_TWO,
             "const-wide/high16": self.CONST_WIDE_HIGHSIXTEEN,
         }
+
+        # if-kind
+        IF_KIND_POSTFIX = ("eq", "ne", "lt", "ge", "gt")
+        for postfix in IF_KIND_POSTFIX:
+            self.eval[f"if-{postfix}"] = self.IF_KIND
+            self.eval[f"if-{postfix}z"] = self.IF_KIND
+
+        # cmp-kind
+        # TODO - finish comparison
 
         # move-kind
         for prefix in ("move", "move-object", "move-wide"):
@@ -633,6 +643,20 @@ class PyEval:
                 )
         except IndexError as e:
             log.exception(f"{e} in BINOP_KIND")
+
+    @logger
+    def IF_KIND(self, instruction: List[str]):
+        def convert_to_method_call(instruction: List[str]):
+            # Drop the last argument since it's the branch address.
+            return (
+                ["invoke-static"]
+                + instruction[1:-1]
+                + [f"{instruction[0]}()V"]
+            )
+
+        instruction = convert_to_method_call(instruction)
+
+        self._invoke(instruction, look_up=False, skip_self=False)
 
     def show_table(self):
         return self.table_obj.get_table()

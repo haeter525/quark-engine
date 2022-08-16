@@ -2,6 +2,7 @@
 # This file is part of Quark-Engine - https://github.com/quark-engine/quark-engine
 # See the file 'LICENSE' for copying permission.
 
+from enum import Enum
 import functools
 from os import PathLike
 from os.path import abspath, isfile, join
@@ -47,6 +48,27 @@ class DefaultRuleset(Ruleset):
 DEFAULT_RULESET = DefaultRuleset(join(QUARK_RULE_PATH, "rules"))
 
 
+class BytecodeSet(Enum):
+    ComparisonForZero = (
+        "if-testz",
+        "if-eqz",
+        "if-nez",
+        "if-ltz",
+        "if-gez",
+        "if-gtz",
+        "if-lez",
+    )
+    Comparison = (
+        "if-test",
+        "if-eq",
+        "if-ne",
+        "if-lt",
+        "if-ge",
+        "if-gt",
+        "if-le",
+    )
+
+
 class Method:
     def __init__(
         self, quarkResultInstance: "QuarkResult", methodObj: MethodObject
@@ -76,6 +98,55 @@ class Method:
         :return: python list containing caller methods
         """
         return self.quarkResult.getMethodXrefFrom(self)
+
+    @functools.cached_property
+    def usageTable(self) -> List[List[str]]:
+        # TODO - Docstring
+        # TODO - Test
+        return self.quarkResult.quark._evaluate_method(self.innerObj)
+
+    def compareValueOf(
+        self, valueA: str, valueB: Union[str, int, bool]
+    ) -> bool:
+        # TODO - Docstring
+        # TODO - Test
+
+        # Convert boolean to integer
+        if isinstance(valueB, bool):
+            # TODO - Need to check what's the bytecode when checking an value is True
+            valueB = 1 if valueB else 0
+
+        usageTable = self.usageTable
+        searchPattern = f"({valueA},{valueB})"
+
+        possibleValue = (
+            historicalValue.called_by_func
+            for register in usageTable
+            for historicalValue in register
+            if searchPattern in historicalValue.called_by_func
+        )
+
+        def findOperationName(callRecord: str, searchPattern: str) -> str:
+            argumentPosition = callRecord.index(searchPattern)
+
+            endOfOperationName = callRecord[:argumentPosition].rfind("(")
+
+            interestingPart = callRecord[:endOfOperationName]
+            startIndex = (
+                max(interestingPart.rfind("("), interestingPart.rfind(",")) + 1
+            )
+
+            operationName = callRecord[startIndex:argumentPosition]
+
+            return operationName
+
+        matchedValue = (
+            value
+            for value in possibleValue
+            if findOperationName(possibleValue, searchPattern)
+        )
+
+        return next(matchedValue, None) is not None
 
     @property
     def fullName(self) -> str:
@@ -162,13 +233,29 @@ class Behavior:
 
         paramValues = []
         for result in allResult:
-            if result[0] == "(" and result[-1] == ")" and \
-                    self.firstAPI.innerObj.class_name in result and \
-                    self.secondAPI.innerObj.class_name in result:
+            if (
+                result[0] == "("
+                and result[-1] == ")"
+                and self.firstAPI.innerObj.class_name in result
+                and self.secondAPI.innerObj.class_name in result
+            ):
 
                 paramValues = result[1:-1].split(",")[1:]
 
         return paramValues
+
+    def isArgFromMethod(self, targetMethod: List[str]) -> bool:
+        """Check if there are any argument from the target method.
+
+        :param targetMethod: python list contains class name, method name, and
+         descriptor of target method
+        :return: True/False-
+        """
+        className, methodName, descriptor = targetMethod
+
+        pattern = f"{className}->{methodName}{descriptor}"
+
+        return bool(self.hasString(pattern))
 
 
 class QuarkResult:
@@ -243,9 +330,7 @@ class QuarkResult:
         return apkinfo.get_strings()
 
     def findMethodInCaller(
-        self,
-        callerMethod: List[str],
-        targetMethod: List[str]
+        self, callerMethod: List[str], targetMethod: List[str]
     ) -> bool:
         """
         Check if target method is in caller method.
@@ -262,7 +347,8 @@ class QuarkResult:
         callerMethodObj = apkinfo.find_method(
             class_name=callerMethod[0],
             method_name=callerMethod[1],
-            descriptor=callerMethod[2])
+            descriptor=callerMethod[2],
+        )
 
         if not callerMethodObj:
             print("Caller method not Found!")
@@ -271,9 +357,11 @@ class QuarkResult:
         callerMethodInstance = Method(self, callerMethodObj)
 
         for calleeMethod, _ in callerMethodInstance.getXrefTo():
-            if calleeMethod.innerObj.class_name == targetMethod[0] and \
-                    calleeMethod.innerObj.name == targetMethod[1] and \
-                    calleeMethod.innerObj.descriptor == targetMethod[2]:
+            if (
+                calleeMethod.innerObj.class_name == targetMethod[0]
+                and calleeMethod.innerObj.name == targetMethod[1]
+                and calleeMethod.innerObj.descriptor == targetMethod[2]
+            ):
                 return True
         return False
 
@@ -290,3 +378,11 @@ def runQuarkAnalysis(samplePath: PathLike, ruleInstance: Rule) -> QuarkResult:
     analysis = QuarkResult(quark, ruleInstance)
 
     return analysis
+
+
+def getPackageName(samplePath: PathLike) -> str:
+    # TODO - Docstring
+    # TODO - Test
+
+    quark = _getQuark(samplePath)
+    return quark.apkinfo.package_name
