@@ -211,11 +211,6 @@ class RizinImp(BaseApkinfo):
             )
             return method
 
-        if escaped_method_name not in flag_name:
-            logging.warning(
-                f"The class name may be truncated: {json_obj['flagname']}"
-            )
-
         # Drop the method name
         match = None
         for match in re.finditer("_+[A-Za-z]+", flag_name):
@@ -398,7 +393,7 @@ class RizinImp(BaseApkinfo):
             descriptor = re.escape(descriptor)
 
         def method_filter(method):
-            return re.match(method_name, method.name) and re.match(
+            return re.fullmatch(method_name, method.name) and re.fullmatch(
                 descriptor, method.descriptor
             )
 
@@ -705,6 +700,8 @@ class RizinImp(BaseApkinfo):
 
         elif p_type == "str":
             parameter = re.sub(r"\.", "->", parameter, count=1)
+            # 13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk with 00193.json rule
+            parameter = "".join([x for x in parameter if ord(x) > 31])
 
         return parameter
 
@@ -729,16 +726,35 @@ class RizinImp(BaseApkinfo):
         # if mnemonic.startswith("invoke"):
         #     args = args[: args.rfind(" ;")]
 
+        # 13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk with 00077.json rule
+        # and 13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk with 00193.json rule
+        while re.search(r";(\w|\[)", args):
+            sub_index = re.search(r";(\w|\[)", args).start()
+            args = args[:sub_index+1] + " " + args[sub_index+1:]
         args = [arg.strip() for arg in re.split("[{},]+", args) if arg]
 
         if mnemonic == "const-string" and args[-1][:2] == "0x":
             args[-1] = self._get_string_by_address(args[-1])
 
+        # "const-string", "v4", "str.SMS"
+        if mnemonic == "const-string" and "." in args[-1]:
+            args[-1] = args[-1].split(".")[-1]
+
+        # invoke-polymorphic/range {v41783..v41784}, method+38423, proto+515
+        # in 14d9f1a92dd984d6040cc41ed06e273e.apk
+        if mnemonic.startswith("invoke-polymorphic"):
+            args = args[:-1]
+
         parameter = None
         # Remove the parameter at the last
-        if args and not args[-1].startswith("v"):
+        if args and not re.match(r"v\d+", args[-1]):
             parameter = RizinImp._parse_parameter(args[-1])
             args = args[:-1]
+
+        # registers thar are missing prefix v
+        for i, arg in enumerate(args):
+            if arg[0] != "v":
+                args[i] = f"v{arg}"
 
         register_list = []
         # Ranged registers
