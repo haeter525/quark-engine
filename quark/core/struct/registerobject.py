@@ -36,6 +36,7 @@ class RegisterObject:
             self._called_by_func.append(called_by_func)
 
     def __repr__(self):
+        # return f"<VarabileObject-register:{self._register_name}, value:{self._value}, called_by_func:{','.join(self._called_by_func)}>"
         return f"<VarabileObject-register:{self._register_name}, value:{self._value}, called_by_func:{','.join(self._called_by_func)}, current_type:{self._value_type}>"
 
     def __eq__(self, obj):
