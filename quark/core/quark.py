@@ -234,7 +234,10 @@ class Quark:
                 continue
 
             if instruction[0] in pyeval.eval.keys():
-                pyeval.eval[instruction[0]](instruction)
+                try:
+                    pyeval.eval[instruction[0]](instruction)
+                except IndexError:
+                    pass
 
         return pyeval.show_table()
 
