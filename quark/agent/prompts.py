@@ -30,3 +30,18 @@ please disregard any previously remembered detection processes.
 Unless specifically requested by the user,
 do not assume any detection procedures.
 """
+
+INTRODUCE_ALL_DETECTION_STEPS = """
+The following list outlines available detection steps with their titles and descriptions.
+{toolList}
+"""
+
+ASK_SUGGESTION = """
+Here is the chain of the detection step(s): {stepChain}
+Based on the chain, suggest multiple possible next detection steps that logically follow and are on the provided list. Reply nothing if none.
+"""
+
+SUGGESTION_NOT_IN_LIST = """
+Here is the detection step(s) suggested previously: {suggestedSteps}
+Some detection steps are not on the list. Please revise the suggestions.
+"""
