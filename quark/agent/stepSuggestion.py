@@ -44,7 +44,7 @@ class DetectionStepSuggestion:
 
     def __loadToolList(self) -> List[DetectionStep]:
         jsonObj = json.loads(
-            Path("quark/agent/toolJson/toolList.json").read_text(
+            Path("toolJson/toolList.json").read_text(
                 encoding="utf-8"
             )
         )
