@@ -11,29 +11,14 @@ from quark.core.r2apkinfo import R2Imp
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
 
-APK_SOURCE = (
-    "https://github.com/quark-engine/apk-samples"
-    "/raw/master/malware-samples/13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk"
-)
-APK_FILENAME = "13667fe3b0ad496a0cd157f34b7e0c991d72a4db.apk"
-
-
-@pytest.fixture(scope="function")
-def apk_path():
-    r = requests.get(APK_SOURCE, allow_redirects=True)
-    file = open(APK_FILENAME, "wb")
-    file.write(r.content)
-
-    return APK_FILENAME
-
 
 @pytest.fixture(
     scope="function",
     params=((AndroguardImp), (RizinImp), (R2Imp)),
 )
-def apkinfo(request, apk_path):
-    Apkinfo, apk_path = request.param, apk_path
-    apkinfo = Apkinfo(apk_path)
+def apkinfo(request, SAMPLE_PATH_13667):
+    Apkinfo = request.param
+    apkinfo = Apkinfo(SAMPLE_PATH_13667)
 
     yield apkinfo
 
@@ -42,12 +27,12 @@ def apkinfo(request, apk_path):
     scope="function",
     params=((AndroguardImp), (RizinImp)),
 )
-def apkinfo_without_R2Imp(request, apk_path):
+def apkinfo_without_R2Imp(request, SAMPLE_PATH_13667):
     """Since R2 has some issue,
     create this function to skip R2 relevant test for some test functions.
     """
-    Apkinfo, apk_path = request.param, apk_path
-    apkinfo = Apkinfo(apk_path)
+    Apkinfo = request.param
+    apkinfo = Apkinfo(SAMPLE_PATH_13667)
 
     yield apkinfo
 
@@ -56,11 +41,10 @@ def apkinfo_without_R2Imp(request, apk_path):
     scope="function",
     params=((R2Imp),),
 )
-def apkinfo_with_R2Imp_only(request, apk_path):
-    """For testcases involved with R2 core lib.
-    """
-    Apkinfo, apk_path = request.param, apk_path
-    apkinfo = Apkinfo(apk_path)
+def apkinfo_with_R2Imp_only(request, SAMPLE_PATH_13667):
+    """For testcases involved with R2 core lib."""
+    Apkinfo = request.param
+    apkinfo = Apkinfo(SAMPLE_PATH_13667)
 
     yield apkinfo
 
@@ -99,8 +83,8 @@ class TestApkinfo:
         with pytest.raises(FileNotFoundError):
             _ = BaseApkinfo(filepath)
 
-    def test_init_with_apk(self, apk_path):
-        apkinfo = BaseApkinfo(apk_path)
+    def test_init_with_apk(self, SAMPLE_PATH_13667):
+        apkinfo = BaseApkinfo(SAMPLE_PATH_13667)
 
         assert apkinfo.ret_type == "APK"
 
