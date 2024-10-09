@@ -13,6 +13,7 @@ from shuriken.dex import hdvmmethodanalysis_t
 from quark.core.interface.baseapkinfo import BaseApkinfo, XMLElement
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
+from quark.utils.tools import descriptor_to_androguard_format
 
 
 class ShurikenImp(BaseApkinfo):
@@ -220,6 +221,6 @@ class ShurikenImp(BaseApkinfo):
             #access_flags=methodAnalysis.access_flags,
             class_name=methodAnalysis.class_name.decode(),
             name=methodAnalysis.name.decode(),
-            descriptor=methodAnalysis.descriptor.decode(),
+            descriptor=descriptor_to_androguard_format(methodAnalysis.descriptor.decode()),
             cache=methodAnalysis,
         )
