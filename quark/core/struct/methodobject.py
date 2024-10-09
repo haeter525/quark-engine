@@ -14,7 +14,7 @@ class MethodObject(object):
     cache: object = field(compare=False, default=None, repr=False)
 
     def __hash__(self):
-        return hash(self.descriptor)
+        return hash(self.full_name)
 
     def __eq__(self, other):
         return isinstance(other, MethodObject) and self.descriptor == other.descriptor
