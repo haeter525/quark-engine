@@ -173,7 +173,24 @@ class ShurikenImp(BaseApkinfo):
 
     @functools.lru_cache()
     def upperfunc(self, method_object: MethodObject) -> Set[MethodObject]:
-        pass
+        if self.ret_type == "APK":
+            methodAnalysis = method_object.cache
+
+            rawMethods = (
+                methodAnalysis.xreffrom[i].method.contents for i in range(methodAnalysis.n_of_xreffrom)
+            ) 
+
+            methods = [
+                self._convert_to_method_object(raw) for raw in rawMethods
+            ]
+
+            return set(methods)
+
+        elif self.ret_type == "DEX":
+            pass
+
+        else:
+            raise ValueError("Unsupported File type.")
 
     def lowerfunc(self, method_object: MethodObject) -> Set[MethodObject]:
         pass
