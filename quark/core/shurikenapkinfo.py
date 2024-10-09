@@ -4,6 +4,7 @@
 
 import functools
 from os import PathLike
+import re
 from typing import Dict, List, Optional, Set, Union
 
 from shuriken import Dex, Apk
@@ -152,11 +153,22 @@ class ShurikenImp(BaseApkinfo):
     @functools.lru_cache()
     def find_method(
             self,
-            class_name: Optional[str] = ".*",
-            method_name: Optional[str] = ".*",
-            descriptor: Optional[str] = ".*",
+            class_name: Optional[str] = None,
+            method_name: Optional[str] = None,
+            descriptor: Optional[str] = None,
     ) -> List[MethodObject]:
-        pass
+        methods = self.all_methods
+
+        if class_name:
+            methods = filter(lambda m: re.match(re.escape(class_name), m.class_name), methods)
+
+        if method_name:
+            methods = filter(lambda m: re.match(re.escape(method_name), m.name), methods)
+
+        if descriptor:
+            methods = filter(lambda m: re.match(re.escape(descriptor), m.descriptor), methods)
+
+        return list(methods)
 
     @functools.lru_cache()
     def upperfunc(self, method_object: MethodObject) -> Set[MethodObject]:

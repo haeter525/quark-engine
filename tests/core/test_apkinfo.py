@@ -26,7 +26,7 @@ def apkinfo(request, SAMPLE_PATH_13667):
 
 @pytest.fixture(
     scope="function",
-    params=((AndroguardImp), (RizinImp)),
+    params=((AndroguardImp), (RizinImp), (ShurikenImp)),
 )
 def apkinfo_without_R2Imp(request, SAMPLE_PATH_13667):
     """Since R2 has some issue,
