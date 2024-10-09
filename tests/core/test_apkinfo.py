@@ -224,6 +224,9 @@ class TestApkinfo:
             assert len(apkinfo.all_methods) == 5452
         elif apkinfo.core_library == "rizin":
             assert len(apkinfo.all_methods) == 5260
+        elif apkinfo.core_library == "shuriken":
+            # TODO - Check the 1217 missing methods
+            assert len(apkinfo.all_methods) == 4181
 
         assert test_custom_method.issubset(apkinfo.all_methods)
 

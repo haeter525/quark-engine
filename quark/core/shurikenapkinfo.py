@@ -6,7 +6,7 @@ import functools
 from os import PathLike
 from typing import Dict, List, Optional, Set, Union
 
-from shuriken import Dex
+from shuriken import Dex, Apk
 from shuriken.dex import hdvmmethodanalysis_t
 
 from quark.core.interface.baseapkinfo import BaseApkinfo, XMLElement
@@ -23,7 +23,7 @@ class ShurikenImp(BaseApkinfo):
         super().__init__(apk_filepath, "shuriken")
 
         if self.ret_type == "APK":
-            pass
+            self.analysis = Apk(apk_filepath, create_xrefs=True)
         elif self.ret_type == "DEX":
             self.analysis = Dex(apk_filepath)
             self.analysis.disassemble_dex()
@@ -90,15 +90,32 @@ class ShurikenImp(BaseApkinfo):
     @property
     def all_methods(self) -> Set[MethodObject]:
         methods = set()
-        for i in range(self.analysis.get_number_of_classes()):
-            rawClass = self.analysis.get_class_by_id(i)
-            className = rawClass.class_name.decode()
-            classAnalysis = self.analysis.get_analyzed_class(className)
-            for j in range(classAnalysis.n_of_methods):
-                methodAnalysis = classAnalysis.methods[i].contents
-                methods.add(
-                    self._convert_to_method_object(methodAnalysis)
-                )
+        if self.ret_type == "APK":
+            for dexIdx in range(self.analysis.get_number_of_dex_files()):
+                dexFile = self.analysis.get_dex_file_by_index(dexIdx)
+                for i in range(self.analysis.get_number_of_classes_for_dex_file(dexFile)):
+                    rawClass = self.analysis.get_hdvmclass_from_dex_by_index(dexFile, i)
+                    className = rawClass.class_name.decode()
+                    classAnalysis = self.analysis.get_analyzed_class_from_apk(className)
+                    for j in range(int(classAnalysis.n_of_methods)):
+                        methodAnalysis = classAnalysis.methods[j].contents
+                        methods.add(
+                            self._convert_to_method_object(methodAnalysis)
+                        )
+                        
+        elif self.ret_type == "DEX":
+            for i in range(self.analysis.get_number_of_classes()):
+                rawClass = self.analysis.get_class_by_id(i)
+                className = rawClass.class_name.decode()
+                classAnalysis = self.analysis.get_analyzed_class(className)
+                for j in range(classAnalysis.n_of_methods):
+                    methodAnalysis = classAnalysis.methods[i].contents
+                    methods.add(
+                        self._convert_to_method_object(methodAnalysis)
+                    )
+        else:
+            raise ValueError("Unsupported File type.")
+        
         return methods
 
     @functools.lru_cache()
