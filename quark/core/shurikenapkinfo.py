@@ -90,18 +90,33 @@ class ShurikenImp(BaseApkinfo):
 
     @property
     def custom_methods(self) -> Set[MethodObject]:
-        methods = set()
-        for i in range(self.analysis.get_number_of_classes()):
-            rawClass = self.analysis.get_class_by_id(i)
-            className = rawClass.class_name.decode()
-            classAnalysis = self.analysis.get_analyzed_class(className)
-            for j in range(classAnalysis.n_of_methods):
-                methodAnalysis = classAnalysis.methods[i].contents
-                if methodAnalysis.external:
-                    methods.add(
-                        self._convert_to_method_object(methodAnalysis)
-                    )
-        return methods
+        if self.ret_type == "APK":
+            allMethods = list(self.all_methods)
+
+            customMethods = (
+                method for method in allMethods
+                if not method.cache.external
+            )
+
+            return set(customMethods)
+
+        elif self.ret_type == "DEX":
+            methods = set()
+            for i in range(self.analysis.get_number_of_classes()):
+                rawClass = self.analysis.get_class_by_id(i)
+                className = rawClass.class_name.decode()
+                classAnalysis = self.analysis.get_analyzed_class(className)
+                for j in range(classAnalysis.n_of_methods):
+                    methodAnalysis = classAnalysis.methods[i].contents
+                    if methodAnalysis.external:
+                        methods.add(
+                            self._convert_to_method_object(methodAnalysis)
+                        )
+            return methods
+        
+        else:
+            raise ValueError("Unsupported File type.")
+
 
     @property
     def all_methods(self) -> Set[MethodObject]:

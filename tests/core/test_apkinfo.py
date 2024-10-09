@@ -209,6 +209,9 @@ class TestApkinfo:
             assert len(apkinfo.custom_methods) == 3999
         elif apkinfo.core_library == "rizin":
             assert len(apkinfo.custom_methods) == 3990
+        elif apkinfo.core_library == "shuriken":
+            assert len(apkinfo.custom_methods) == 3999
+
         assert test_custom_method.issubset(apkinfo.custom_methods)
 
     def test_all_methods(self, apkinfo):
