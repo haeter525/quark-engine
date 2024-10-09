@@ -8,13 +8,14 @@ from quark.core.apkinfo import AndroguardImp
 from quark.core.interface.baseapkinfo import BaseApkinfo
 from quark.core.rzapkinfo import RizinImp
 from quark.core.r2apkinfo import R2Imp
+from quark.core.shurikenapkinfo import ShurikenImp
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
 
 
 @pytest.fixture(
     scope="function",
-    params=((AndroguardImp), (RizinImp), (R2Imp)),
+    params=((AndroguardImp), (RizinImp), (R2Imp), (ShurikenImp)),
 )
 def apkinfo(request, SAMPLE_PATH_13667):
     Apkinfo = request.param
@@ -52,7 +53,8 @@ def apkinfo_with_R2Imp_only(request, SAMPLE_PATH_13667):
 @pytest.fixture(scope="function")
 def dex_file():
     APK_SOURCE = (
-        "https://github.com/quark-engine/apk-samples" "/raw/master/malware-samples/Ahmyth.apk"
+        "https://github.com/quark-engine/apk-samples"
+        "/raw/master/malware-samples/Ahmyth.apk"
     )
     APK_NAME = "Ahmyth.apk"
     DEX_NAME = "classes.dex"
