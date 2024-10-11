@@ -5,7 +5,7 @@
 import functools
 from os import PathLike
 import re
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, Iterator, List, Optional, Set, Union
 
 from shuriken import Dex, Apk
 from shuriken.dex import hdvmmethodanalysis_t
@@ -214,8 +214,23 @@ class ShurikenImp(BaseApkinfo):
 
     def get_method_bytecode(
         self, method_object: MethodObject
-    ) -> Set[MethodObject]:
+    ) -> Iterator[BytecodeObject]:
+        if self.ret_type == "APK":
+            methodAnalysis = method_object.cache
+            bytecodeBlocks = methodAnalysis.basic_blocks.contents
+
+            numOfBlocks = bytecodeBlocks.n_of_blocks
+            for block in bytecodeBlocks.blocks[:numOfBlocks]:
+
+                numOfInstructions = block.n_of_instructions
+                for instruction in block.instructions[:numOfInstructions]:
+                    # TODO - Convert bytearray to BytecodeObject
+                    yield instruction.disassembly
+        elif self.ret_type == "DEX":
             pass
+
+        else:
+            raise ValueError("Unsupported File type.")
 
     def get_strings(self) -> str:
         pass
