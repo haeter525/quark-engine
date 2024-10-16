@@ -374,6 +374,45 @@ class TestApkinfo:
         for expected in expected_bytecode_list:
             assert expected in bytecodes
 
+    def test_get_wrapper_smali(self, apkinfo):
+        parentMethod = apkinfo.find_method(
+            "Lcom/example/google/service/SMSReceiver;",
+            "onReceive",
+            "(Landroid/content/Context; Landroid/content/Intent;)V",
+        )[0]
+        firstMethod = apkinfo.find_method(
+            "Landroid/telephony/SmsMessage;",
+            "createFromPdu",
+            "([B)Landroid/telephony/SmsMessage;",
+        )[0]
+        secondMethod = apkinfo.find_method(
+            "Landroid/telephony/SmsMessage;",
+            "getDisplayOriginatingAddress",
+            "()Ljava/lang/String;",
+        )[0]
+
+        expectedResult = {
+            "first": [
+                "invoke-static",
+                "v10",
+                "Landroid/telephony/SmsMessage;->createFromPdu([B)Landroid/telephony/SmsMessage;",
+            ],
+            "first_hex": "71 10 b2 11 0a 00",
+            "second": [
+                "invoke-virtual",
+                "v4",
+                "Landroid/telephony/SmsMessage;->getDisplayOriginatingAddress()Ljava/lang/String;",
+            ],
+            "second_hex": "6e 10 b3 11 04 00",
+        }
+
+        result = apkinfo.get_wrapper_smali(parentMethod, firstMethod, secondMethod)
+
+        assert tuple(expectedResult["first"]) == tuple(result["first"])
+        assert tuple(expectedResult["second"]) == tuple(result["second"])
+        assert expectedResult["first_hex"] == result["first_hex"]
+        assert expectedResult["second_hex"] == result["second_hex"]
+
     def test_lowerfunc(self, apkinfo_without_R2Imp):
         apkinfo = apkinfo_without_R2Imp
         method = apkinfo.find_method(

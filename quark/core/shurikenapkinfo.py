@@ -10,7 +10,7 @@ import re
 from typing import Dict, Iterator, List, Optional, Set, Union
 
 from shuriken import Dex, Apk
-from shuriken.dex import hdvmmethodanalysis_t
+from shuriken.dex import hdvmmethodanalysis_t, hdvminstruction_t
 
 from quark.core.interface.baseapkinfo import BaseApkinfo, XMLElement
 from quark.core.struct.bytecodeobject import BytecodeObject
@@ -175,6 +175,19 @@ class ShurikenImp(BaseApkinfo):
 
         return methodDict
 
+    @staticmethod
+    def __get_instructions(
+        methodAnalysis: hdvmmethodanalysis_t,
+    ) -> Iterator[hdvminstruction_t]:
+        bytecodeBlocks = methodAnalysis.basic_blocks.contents
+
+        numOfBlocks = bytecodeBlocks.n_of_blocks
+        for block in bytecodeBlocks.blocks[:numOfBlocks]:
+
+            numOfInstructions = block.n_of_instructions
+            for instruction in block.instructions[:numOfInstructions]:
+                yield instruction
+
     @functools.lru_cache()
     def find_method(
         self,
@@ -275,15 +288,12 @@ class ShurikenImp(BaseApkinfo):
     ) -> Iterator[BytecodeObject]:
         if self.ret_type == "APK":
             methodAnalysis = method_object.cache
-            bytecodeBlocks = methodAnalysis.basic_blocks.contents
+            instructions = self.__get_instructions(methodAnalysis)
 
-            numOfBlocks = bytecodeBlocks.n_of_blocks
-            for block in bytecodeBlocks.blocks[:numOfBlocks]:
+            for instruction in instructions:
+                # TODO - Convert bytearray to BytecodeObject
+                yield instruction.disassembly
 
-                numOfInstructions = block.n_of_instructions
-                for instruction in block.instructions[:numOfInstructions]:
-                    # TODO - Convert bytearray to BytecodeObject
-                    yield instruction.disassembly
         elif self.ret_type == "DEX":
             pass
 
@@ -300,6 +310,19 @@ class ShurikenImp(BaseApkinfo):
         """
         pass
 
+    @staticmethod
+    def __find_first_bytecode_by_calling_method(
+        bytecodes: Iterator[BytecodeObject], target_method: MethodObject
+    ) -> Optional[BytecodeObject]:
+        targetMethodCall = f"{target_method.class_name}->{target_method.name}{target_method.descriptor}"
+
+        for bytecode in bytecodes:
+            if (
+                bytecode.mnemonic.startswith("invoke")
+                and targetMethodCall in bytecode.parameter
+            ):
+                return bytecode
+
     @functools.lru_cache()
     def get_wrapper_smali(
         self,
@@ -307,7 +330,33 @@ class ShurikenImp(BaseApkinfo):
         first_method: MethodObject,
         second_method: MethodObject,
     ) -> Dict[str, Union[BytecodeObject, str]]:
-        pass
+        if self.ret_type == "APK":
+            bytecodes = self.get_method_bytecode(parent_method)
+
+            first = self.__find_first_bytecode_by_calling_method(
+                bytecodes, first_method
+            )
+            second = self.__find_first_bytecode_by_calling_method(
+                bytecodes, second_method
+            )
+
+            return {
+                "first": [
+                    first.mnemonic,
+                    " ".join(first.registers),
+                    first.parameter,
+                ],
+                "first_hex": "",  # TODO - Finish me
+                "second": [
+                    second.mnemonic,
+                    " ".join(second.registers),
+                    second.parameter,
+                ],
+                "second_hex": "",  # TODO - Finish me
+            }
+
+        elif self.ret_type == "DEX":
+            pass
 
     @property
     def superclass_relationships(self) -> Dict[str, Set[str]]:
