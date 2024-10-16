@@ -16,9 +16,6 @@ class MethodObject(object):
     def __hash__(self):
         return hash(self.full_name)
 
-    def __eq__(self, other):
-        return isinstance(other, MethodObject) and self.descriptor == other.descriptor
-
     @property
     def full_name(self) -> str:
         return self.__str__()
