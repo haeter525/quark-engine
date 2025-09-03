@@ -80,11 +80,11 @@ jobs:
       run: |
         sudo quark --help
         git clone https://github.com/quark-engine/apk-samples
-        sudo quark -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s
-        sudo quark -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d
-        sudo quark -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -g
-        sudo quark -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d -g
-        sudo quark -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -c
+        sudo quark --core-library shuriken -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s
+        sudo quark --core-library shuriken -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d
+        sudo quark --core-library shuriken -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -g
+        sudo quark --core-library shuriken -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -d -g
+        sudo quark --core-library shuriken -a apk-samples/malware-samples/14d9f1a92dd984d6040cc41ed06e273e.apk -s -c
 
     - name: Check Accuracy
       shell: bash
