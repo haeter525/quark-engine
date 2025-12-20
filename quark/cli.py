@@ -23,6 +23,16 @@ from quark.webreport.generate import ReportGenerator
 
 logo()
 
+# wrapper.py
+import resource
+import subprocess
+import sys
+
+# 限制可用 virtual memory (RLIMIT_AS)
+limit_mb = 20 * 1024# 根據你的 Quark 分析大小調整
+resource.setrlimit(resource.RLIMIT_AS,
+                   (limit_mb * 1024 * 1024, limit_mb * 1024 * 1024))
+
 
 @click.version_option(version=__version__)
 @click.command(no_args_is_help=True)
