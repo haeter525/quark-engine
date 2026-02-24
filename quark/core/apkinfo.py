@@ -3,8 +3,12 @@
 # See the file 'LICENSE' for copying permission.
 
 import functools
+import hashlib
+import io
 import logging
 import re
+import zipfile
+import zlib
 from collections import defaultdict
 from os import PathLike
 from typing import Dict, List, Optional, Set, Union
@@ -30,13 +34,104 @@ class AndroguardImp(BaseApkinfo):
             # as we don't use Androguard’s AndroidManifest parsing results.
             logging.getLogger("androguard.axml").disabled = True
             logging.getLogger("androguard.apk").disabled = True
-            # return the APK, list of DalvikVMFormat, and Analysis objects
-            self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(self.data, raw=True)
+            try:
+                # return the APK, list of DalvikVMFormat, and Analysis objects
+                self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(self.data, raw=True)
+            except Exception as e:
+                # Check if the exception looks like a checksum error
+                if self._looks_like_checksum_error(e):
+                    # Repack the APK with fixed DEX headers
+                    fixed_bytes = self._repack_apk_with_fixed_dex_headers_from_bytes(self.data)
+
+                    # Check if the APK was actually repacked
+                    if fixed_bytes:
+                        # Analyze the repacked APK
+                        self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(fixed_bytes, raw=True)
+                    else:
+                        # If the APK was not actually repacked, raise the original exception
+                        raise e
+                else:
+                    # If the exception does not look like a checksum error, raise the original exception
+                    raise e
         elif self.ret_type == "DEX":
-            # return the sha256hash, DalvikVMFormat, and Analysis objects
-            _, _, self.analysis = get_default_session().addDEX(self.apk_filename, self.data)
+            try:
+                # return the sha256hash, DalvikVMFormat, and Analysis objects
+                _, _, self.analysis = get_default_session().addDEX(self.apk_filename, self.data)
+            except Exception as e:
+                # Check if the exception looks like a checksum error
+                if self._looks_like_checksum_error(e):
+                    # Fix the header of the DEX file
+                    fixed = self._fix_single_dex_header(self.data)
+
+                    # Check if the DEX file was actually fixed
+                    if fixed != self.data:
+                        # Analyze the fixed DEX file
+                        _, _, self.analysis = get_default_session().addDEX(self.apk_filename, fixed)
+                    else:
+                        # If the DEX file was not actually fixed, raise the original exception
+                        raise e
+                else:
+                    # If the exception does not look like a checksum error, raise the original exception
+                    raise e
         else:
             raise ValueError("Unsupported File type.")
+
+    def _repack_apk_with_fixed_dex_headers_from_bytes(self, apk_bytes: bytes) -> Optional[bytes]:
+        """Repack the APK with fixed DEX headers from bytes.
+        
+        Open the APK in memory, fix the headers of all .dex files, and repack them back into bytes.
+        Only return the new APK if there were actually changes; otherwise return None.
+
+        """
+        try:
+            # Open the APK in memory
+            in_io = io.BytesIO(apk_bytes)
+            
+            # Open the APK as a zip file
+            with zipfile.ZipFile(in_io, "r") as zf:
+                # Create a new zip file to store the fixed DEX files
+                updated = False
+                out_io = io.BytesIO()
+
+                # Open the new zip file to store the fixed DEX files
+                with zipfile.ZipFile(out_io, "w", compression=zipfile.ZIP_DEFLATED) as out_zf:
+                    # Iterate over all files in the APK
+                    for info in zf.infolist():
+                        # Read the data of the file
+                        data = zf.read(info.filename)
+
+                        # Check if the file is a DEX file
+                        if info.filename.lower().endswith(".dex"):
+                            # Fix the header of the DEX file
+                            fixed = self._fix_single_dex_header(data)
+
+                            # Check if the DEX file was actually fixed
+                            if fixed != data:
+                                updated = True
+                                data = fixed
+
+                        # keep basic zip entry metadata
+                        zi = zipfile.ZipInfo(info.filename, date_time=info.date_time)
+                        zi.compress_type = zipfile.ZIP_DEFLATED
+                        zi.external_attr = info.external_attr
+                        zi.create_system = info.create_system
+
+                        # Write the fixed DEX file to the new zip file
+                        out_zf.writestr(zi, data)
+
+                # Return the new APK if there were actually changes; otherwise return None
+                return out_io.getvalue() if updated else None
+        except Exception as e:
+            # If there was an error, return None
+            return None
+
+
+    def _looks_like_checksum_error(self,e: Exception) -> bool:
+        """Check if the exception looks like a checksum error."""
+        s = str(e).lower()
+
+        keywords = ("checksum", "adler32")
+        return any(kw in s for kw in keywords)
 
     @property
     def android_apis(self) -> Set[MethodObject]:
@@ -295,3 +390,32 @@ class AndroguardImp(BaseApkinfo):
             descriptor=str(method_analysis.descriptor),
             cache=method_analysis,
         )
+
+    @staticmethod
+    def _fix_single_dex_header(dex: bytes) -> bytes:
+        """Fix the header of a single DEX file.
+
+        Layout:
+        - 0x08..0x0B: Adler32
+        - 0x0C..0x1F: SHA-1
+        """
+
+        # Check if the DEX file is valid
+        if len(dex) < 0x20 or not dex.startswith(b"dex\n"):
+            # Invalid DEX file
+            # Return the original DEX file without any changes
+            return dex
+
+        # SHA-1 Signature (20 bytes)
+        sha1 = hashlib.sha1(dex[0x20:]).digest()
+        # Adler32 Checksum (4 bytes) little-endian
+        ad = zlib.adler32(dex[0x0C:]) & 0xFFFFFFFF
+
+        # Update the header
+        out = bytearray(dex)
+        # Update the SHA-1 Signature
+        out[0x0C:0x20] = sha1
+        # Update the Adler32 Checksum
+        out[0x08:0x0C] = ad.to_bytes(4, "little")
+
+        return bytes(out)
