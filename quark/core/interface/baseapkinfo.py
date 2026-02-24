@@ -37,7 +37,8 @@ class BaseApkinfo:
             self,
             apk_filepath: str | PathLike,
             core_library: str = "None",
-            tmp_dir: str | PathLike | None = None
+            tmp_dir: str | PathLike | None = None,
+            auto_fix_checksum=False
     ):
         self.file = open(apk_filepath, "rb")
         self.data = SeekableMMap(self.file.fileno(), 0, access=mmap.ACCESS_COPY)
@@ -53,6 +54,7 @@ class BaseApkinfo:
         self.apk_filename = os.path.basename(apk_filepath)
         self.apk_filepath = apk_filepath
         self.core_library = core_library
+        self.auto_fix_checksum = auto_fix_checksum
 
 
     def __repr__(self) -> str:

@@ -26,8 +26,8 @@ from quark.evaluator.pyeval import PyEval
 class AndroguardImp(BaseApkinfo):
     """Information about apk based on androguard analysis"""
 
-    def __init__(self, apk_filepath: Union[str, PathLike]):
-        super().__init__(apk_filepath, "androguard")
+    def __init__(self, apk_filepath: Union[str, PathLike], auto_fix_checksum=False):
+        super().__init__(apk_filepath, "androguard", auto_fix_checksum=auto_fix_checksum)
 
         if self.ret_type == "APK":
             # Suppress Androguard warnings about AndroidManifest,
@@ -38,6 +38,10 @@ class AndroguardImp(BaseApkinfo):
                 # return the APK, list of DalvikVMFormat, and Analysis objects
                 self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(self.data, raw=True)
             except Exception as e:
+                # If auto_fix_checksum is not enabled, raise the original exception
+                if not self.auto_fix_checksum:
+                    raise e
+
                 # Check if the exception looks like a checksum error
                 if self._looks_like_checksum_error(e):
                     # Repack the APK with fixed DEX headers
@@ -58,6 +62,10 @@ class AndroguardImp(BaseApkinfo):
                 # return the sha256hash, DalvikVMFormat, and Analysis objects
                 _, _, self.analysis = get_default_session().addDEX(self.apk_filename, self.data)
             except Exception as e:
+                # If auto_fix_checksum is not enabled, raise the original exception
+                if not self.auto_fix_checksum:
+                    raise e
+
                 # Check if the exception looks like a checksum error
                 if self._looks_like_checksum_error(e):
                     # Fix the header of the DEX file
