@@ -2,11 +2,13 @@
 # This file is part of Quark-Engine - https://github.com/quark-engine/quark-engine
 # See the file 'LICENSE' for copying permission.
 
+import click
 import functools
 import hashlib
 import io
 import logging
 import re
+import sys
 import zipfile
 import zlib
 from collections import defaultdict
@@ -38,12 +40,36 @@ class AndroguardImp(BaseApkinfo):
                 # return the APK, list of DalvikVMFormat, and Analysis objects
                 self.apk, self.dalvikvmformat, self.analysis = AnalyzeAPK(self.data, raw=True)
             except Exception as e:
-                # If auto_fix_checksum is not enabled, raise the original exception
-                if not self.auto_fix_checksum:
-                    raise e
-
                 # Check if the exception looks like a checksum error
                 if self._looks_like_checksum_error(e):
+                    # If auto_fix_checksum is not enabled, ask the user for confirmation
+                    if not self.auto_fix_checksum:
+                        if sys.stdin.isatty() and sys.stdout.isatty():
+                            # If the environment is interactive, ask the user for confirmation
+                            agree = click.confirm(
+                                "\n⚠ Detected damaged DEX checksum/signature."
+                                "\n   Fixing will modify DEX headers and invalidate APK signatures (hashes will change)."
+                                "\n   Proceed to repair and continue the analysis?",
+                                default=False,
+                                show_default=True,
+                            )
+
+                            if not agree:
+                                # If the user does not agree, cancel the repair and keep the original file
+                                click.echo("\n✖ Repair canceled by user. Keeping the original file.\n", err=True)
+
+                                raise e
+                        else:
+                            # If the environment is non-interactive, print a message and abort the analysis
+                            click.echo(
+                                "ℹ Detected damaged DEX checksum/signature but --auto-fix-checksum was not provided "
+                                "and the environment is non-interactive. Skipping repair and aborting.\n"
+                                "   Hint: rerun with --auto-fix-checksum to repair automatically.",
+                                err=True,
+                            )
+                            raise e
+
+
                     # Repack the APK with fixed DEX headers
                     fixed_bytes = self._repack_apk_with_fixed_dex_headers_from_bytes(self.data)
 
@@ -62,12 +88,35 @@ class AndroguardImp(BaseApkinfo):
                 # return the sha256hash, DalvikVMFormat, and Analysis objects
                 _, _, self.analysis = get_default_session().addDEX(self.apk_filename, self.data)
             except Exception as e:
-                # If auto_fix_checksum is not enabled, raise the original exception
-                if not self.auto_fix_checksum:
-                    raise e
-
                 # Check if the exception looks like a checksum error
                 if self._looks_like_checksum_error(e):
+                    # If auto_fix_checksum is not enabled, ask the user for confirmation
+                    if not self.auto_fix_checksum:
+                        if sys.stdin.isatty() and sys.stdout.isatty():
+                            # If the environment is interactive, ask the user for confirmation
+                            agree = click.confirm(
+                                "\n⚠ Detected damaged DEX checksum/signature."
+                                "\n   Fixing will modify DEX headers and invalidate APK signatures (hashes will change)."
+                                "\n   Proceed to repair and continue the analysis?",
+                                default=False,
+                                show_default=True,
+                            )
+
+                            if not agree:
+                                # If the user does not agree, cancel the repair and keep the original file
+                                click.echo("✖ Repair canceled by user. Keeping the original file.", err=True)
+
+                                raise e
+                        else:
+                            # If the environment is non-interactive, print a message and abort the analysis
+                            click.echo(
+                                "ℹ Detected damaged DEX checksum/signature but --auto-fix-checksum was not provided "
+                                "and the environment is non-interactive. Skipping repair and aborting.\n"
+                                "   Hint: rerun with --auto-fix-checksum to repair automatically.",
+                                err=True,
+                            )
+                            raise e
+
                     # Fix the header of the DEX file
                     fixed = self._fix_single_dex_header(self.data)
 
@@ -138,7 +187,7 @@ class AndroguardImp(BaseApkinfo):
         """Check if the exception looks like a checksum error."""
         s = str(e).lower()
 
-        keywords = ("checksum", "adler32")
+        keywords = ("checksum", "adler32", "wrong adler32")
         return any(kw in s for kw in keywords)
 
     @property

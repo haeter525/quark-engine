@@ -151,7 +151,8 @@ logo()
 )
 @click.option(
     "--auto-fix-checksum",
-    help="Automatically repair damaged DEX checksum/signature before analyzing (androguard only).",
+    help="Automatically repair damaged DEX checksum/signature before analyzing (androguard only)." + 
+    "When not provided, Quark will prompt in interactive TTY and skip in non-interactive runs.",
     is_flag=True,
     default=False,
     show_default=True,
