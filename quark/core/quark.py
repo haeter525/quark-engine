@@ -46,11 +46,13 @@ MAX_SEARCH_LAYER = 3
 class Quark:
     """Quark module is used to check quark's five-stage theory"""
 
-    def __init__(self, apk, core_library="androguard"):
+    def __init__(self, apk, core_library="androguard", auto_fix_checksum=False):
         """
 
         :param apk: the filename of the apk.
         """
+        self.auto_fix_checksum = auto_fix_checksum
+
         core_library = core_library.lower()
         if core_library == "shuriken":
             self.apkinfo = ShurikenImp(apk)
@@ -59,7 +61,7 @@ class Quark:
         elif core_library == "radare2":
             self.apkinfo = R2Imp(apk)
         elif core_library == "androguard":
-            self.apkinfo = AndroguardImp(apk)
+            self.apkinfo = AndroguardImp(apk, self.auto_fix_checksum)
         else:
             raise ValueError(
                 f"Unsupported core library for Quark: {core_library}"

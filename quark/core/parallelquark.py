@@ -13,9 +13,9 @@ _quark = None
 
 class ParallelQuark(Quark):
     @staticmethod
-    def _worker_initializer(apk, core_library):
+    def _worker_initializer(apk, core_library, auto_fix_checksum):
         global _quark
-        _quark = Quark(apk, core_library)
+        _quark = Quark(apk, core_library, auto_fix_checksum)
 
     @staticmethod
     def _worker_analysis(rule_obj):
@@ -112,11 +112,11 @@ class ParallelQuark(Quark):
                 ]
             )
 
-    def __init__(self, apk, core_library, num_of_process=1):
+    def __init__(self, apk, core_library, num_of_process=1, auto_fix_checksum=False):
         self._result_map = {}
         self._pool = Pool(
             min(num_of_process, cpu_count() - 1), self._worker_initializer,
-            (apk, core_library)
+            (apk, core_library, auto_fix_checksum)
         )
 
         super().__init__(apk, core_library)

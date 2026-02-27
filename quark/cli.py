@@ -149,6 +149,14 @@ logo()
     required=False,
     default=1,
 )
+@click.option(
+    "--auto-fix-checksum",
+    help="Automatically repair damaged DEX checksum/signature before analyzing (androguard only)." + 
+    "When not provided, Quark will prompt in interactive TTY and skip in non-interactive runs.",
+    is_flag=True,
+    default=False,
+    show_default=True,
+)
 def entry_point(
     summary,
     detail,
@@ -166,6 +174,7 @@ def entry_point(
     comparison,
     core_library,
     num_of_process,
+    auto_fix_checksum,
 ):
     """Quark is an Obfuscation-Neglect Android Malware Scoring System"""
     # Load rules
@@ -227,9 +236,9 @@ def entry_point(
         malware_confidences = {}
         for apk_ in apk:
             data = (
-                ParallelQuark(apk_, core_library, num_of_process)
+                ParallelQuark(apk_, core_library, num_of_process, auto_fix_checksum)
                 if num_of_process > 1
-                else Quark(apk_, core_library)
+                else Quark(apk_, core_library, auto_fix_checksum)
             )
             all_labels = {}
             # dictionary containing
@@ -284,9 +293,9 @@ def entry_point(
 
     # Load APK
     data = (
-        ParallelQuark(apk[0], core_library, num_of_process)
+        ParallelQuark(apk[0], core_library, num_of_process, auto_fix_checksum)
         if num_of_process > 1
-        else Quark(apk[0], core_library)
+        else Quark(apk[0], core_library, auto_fix_checksum)
     )
 
     if label:
