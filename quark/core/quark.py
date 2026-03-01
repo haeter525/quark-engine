@@ -166,6 +166,7 @@ class Quark:
         :return: True or False
         """
         state = False
+        # Cache the result of lowerfunc to avoid redundant computations
         mutual_parent_lowerfunc = self.apkinfo.lowerfunc(mutual_parent)
 
         for first_call_method in first_method_list:
