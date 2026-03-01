@@ -263,6 +263,7 @@ class AndroguardImp(BaseApkinfo):
             for _, call, _ in method_analysis.get_xref_from()
         }
 
+    @functools.lru_cache()
     def lowerfunc(self, method_object: MethodObject) -> Set[MethodObject]:
         method_analysis = method_object.cache
         return {
