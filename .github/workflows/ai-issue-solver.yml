@@ -7,10 +7,6 @@ on:
         description: "Issue Number"
         required: true
         type: number
-      additional_prompts:
-        description: "Additional Prompts"
-        required: false
-        type: string
       model_to_use:
         description: "Model to use"
         required: true
@@ -43,30 +39,41 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Specify a suitable Python version
+          python-version: '3.11'
 
       - name: Clone SWE-agent
         run: |
+          echo "Creating temporary directory for SWE-agent..."
           TEMP_DIR=$(mktemp -d)
+          echo "Temporary directory created: $TEMP_DIR"
           echo "SWE_AGENT_PATH=$TEMP_DIR/SWE-agent" >> $GITHUB_ENV
+          echo "Cloning SWE-agent repository into $TEMP_DIR/SWE-agent..."
           git clone https://github.com/SWE-agent/SWE-agent $TEMP_DIR/SWE-agent
           cd $TEMP_DIR/SWE-agent
+          echo "Checking out fixed version (commit 602b8accb865dc7b72525777a01df30ef31755a3)..."
           git checkout 602b8accb865dc7b72525777a01df30ef31755a3
 
       - name: Copy SWE-agent files
         run: |
+          echo "Creating tools directory in SWE-agent path: ${{ env.SWE_AGENT_PATH }}/tools"
           mkdir -p ${{ env.SWE_AGENT_PATH }}/tools
+          echo "Copying local workflow tools from ${{ github.workspace }}/.github/workflows/ai-issue-solver/ to ${{ env.SWE_AGENT_PATH }}/"
           cp -r "${{ github.workspace }}/.github/workflows/ai-issue-solver/." "${{ env.SWE_AGENT_PATH }}/"
           
       - name: Install SWE-agent
         run: |
+          echo "Changing directory to SWE-agent path: ${{ env.SWE_AGENT_PATH }}"
           cd ${{ env.SWE_AGENT_PATH }}
+          echo "Upgrading pip..."
           python -m pip install --upgrade pip
+          echo "Installing SWE-agent in editable mode..."
           pip install --editable .
+          echo "Verifying SWE-agent installation..."
           sweagent --help
 
-      - name: Generate and print merged SWE-agent config
+      - name: Generate solver config
         run: |
+          echo "Generating and printing merged SWE-agent configuration to merged.yaml..."
           sweagent run \
             --config .github/workflows/ai-issue-solver/general.yaml \
             --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
@@ -75,12 +82,15 @@ jobs:
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
             --print_config
 
-      - name: Run SWE-agent with merged config
+      - name: Run solver
         run: |
+          echo "Running SWE-agent with the generated configuration..."
           OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} sweagent run \
             --config .github/workflows/ai-issue-solver/general.yaml \
             --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
+        # TODO - Save patch file, traj folder as artifact
+        # TODO - Show PR link as summary
 
