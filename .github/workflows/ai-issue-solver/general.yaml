@@ -31,7 +31,7 @@ agent:
       4. Edit the sourcecode of the repo to resolve the error
       5. Rerun your reproduce script and confirm that the error is fixed!
       6. Think about edgecases and make sure your fix handles them as well
-      Your thinking should be thorough and so it's fine if it's very long.
+      Think thoroughly. Explain your thinking before taking any actions. It's fine if it's very long.
     next_step_template: |-
       OBSERVATION:
       {{observation}}
