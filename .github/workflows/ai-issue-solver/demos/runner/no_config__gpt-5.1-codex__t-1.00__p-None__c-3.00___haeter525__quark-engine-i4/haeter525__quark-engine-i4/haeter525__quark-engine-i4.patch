@@ -1,0 +1,49 @@
+diff --git a/quark/evaluator/pyeval.py b/quark/evaluator/pyeval.py
+index 94655f5..98e50cb 100644
+--- a/quark/evaluator/pyeval.py
++++ b/quark/evaluator/pyeval.py
+@@ -98,11 +98,15 @@ class PyEval:
+             self.eval[f"{prefix}-double"] = self.NEG_AND_NOT_KIND
+ 
+         # type casting
+-        for first_type in ("int", "long", "float", "double"):
+-            for second_type in ("int", "long", "float", "double"):
++        cast_types = ("int", "long", "float", "double")
++        for first_type in cast_types:
++            for second_type in cast_types:
+                 if first_type == second_type:
+                     continue
+-                self.eval[f"{first_type}-{second_type}"] = self.CAST_TYPE
++                mnemonic = f"{first_type}-to-{second_type}"
++                alias = f"{first_type}-{second_type}"
++                self.eval[mnemonic] = self.CAST_TYPE
++                self.eval[alias] = self.CAST_TYPE
+ 
+         # binop_kind
+         for prefix in (
+@@ -638,16 +642,21 @@ class PyEval:
+     @logger
+     def CAST_TYPE(self, instruction):
+         try:
+-            part = instruction[0].split("-")
+-            value_type = self.type_mapping[part[1]]
++            mnemonic = instruction[0]
++            part = mnemonic.split("-")
++            if len(part) == 3:
++                src_type, _, dest_type = part
++            else:
++                src_type, dest_type = part
++            value_type = self.type_mapping[dest_type]
+ 
+-            if part[0] in ("double", "long"):
++            if src_type in ("double", "long"):
+                 self._move_value_to_register(
+                     instruction + [f"v{int(instruction[2][1:])+1}"],
+                     "casting({src0}, {src1})",
+                     value_type=value_type,
+                 )
+-            elif part[1] in ("double", "long"):
++            elif dest_type in ("double", "long"):
+                 self._move_value_to_register(
+                     instruction,
+                     "casting({src0})",
