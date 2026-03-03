@@ -15,6 +15,11 @@ on:
         description: "Model to use"
         required: true
         type: string
+      total_cost_limit:
+        description: "Total cost limit (positive float)"
+        required: true
+        type: number
+        default: 3.0
 
 jobs:
   print_inputs:
@@ -25,3 +30,51 @@ jobs:
           echo "Issue Number: ${{ github.event.inputs.issue_number }}"
           echo "Additional Prompts: ${{ github.event.inputs.additional_prompts }}"
           echo "Model to use: ${{ github.event.inputs.model_to_use }}"
+
+  run_ai_issue_solver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' # Specify a suitable Python version
+
+      - name: Clone SWE-agent
+        run: |
+          TEMP_DIR=$(mktemp -d)
+          echo "SWE_AGENT_PATH=$TEMP_DIR/SWE-agent" >> $GITHUB_ENV
+          git clone https://github.com/SWE-agent/SWE-agent $TEMP_DIR/SWE-agent
+          cd $TEMP_DIR/SWE-agent
+          git checkout 602b8accb865dc7b72525777a01df30ef31755a3
+
+      - name: Copy SWE-agent files
+        run: |
+          mkdir -p ${{ env.SWE_AGENT_PATH }}/tools
+          cp -r "${{ github.workspace }}/.github/workflows/ai-issue-solver/." "${{ env.SWE_AGENT_PATH }}/"
+          
+      - name: Install SWE-agent
+        run: |
+          cd ${{ env.SWE_AGENT_PATH }}
+          python -m pip install --upgrade pip
+          pip install --editable .
+          sweagent --help
+
+      - name: Generate and print merged SWE-agent config
+        run: |
+          sweagent run \
+            --config .github/workflows/ai-issue-solver/general.yaml \
+            --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
+            --problem_statement.github_url=https://github.com/haeter525/quark-engine/issues/${{ github.event.inputs.issue_number }} \
+            --agent.model.name ${{ github.event.inputs.model_to_use }} \
+            --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
+            --print_config > merged.yaml
+          cat merged.yaml
+
+      - name: Run SWE-agent with merged config
+        run: |
+          OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} sweagent run \
+            --config merged.yaml
+
