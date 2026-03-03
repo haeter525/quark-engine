@@ -264,12 +264,12 @@ class AndroguardImp(BaseApkinfo):
         }
 
     @functools.lru_cache()
-    def lowerfunc(self, method_object: MethodObject) -> Set[MethodObject]:
+    def lowerfunc(self, method_object: MethodObject) -> tuple[tuple[MethodObject, int], ...]:
         method_analysis = method_object.cache
-        return {
+        return tuple(
             (self._convert_to_method_object(call), offset)
             for _, call, offset in method_analysis.get_xref_to()
-        }
+        )
 
     def get_method_bytecode(
         self, method_object: MethodObject

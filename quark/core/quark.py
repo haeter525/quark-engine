@@ -166,7 +166,15 @@ class Quark:
         :return: True or False
         """
         state = False
+        if mutual_parent is None:
+            raise TypeError("Parent function is None.")
+
+        if not first_method_list or not second_method_list:
+            raise TypeError("First or second method list is None or empty.")
+
         mutual_parent_lowerfunc = self.apkinfo.lowerfunc(mutual_parent)
+        if not mutual_parent_lowerfunc:
+            return False
 
         for first_call_method in first_method_list:
             for second_call_method in second_method_list:
