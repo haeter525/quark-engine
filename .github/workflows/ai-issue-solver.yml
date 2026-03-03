@@ -24,15 +24,17 @@ on:
 
 jobs:
   print_inputs:
+    name: Inputs
     runs-on: ubuntu-latest
     steps:
-      - name: Parameters
+      - name: Show Inputs
         run: |
           echo "Issue Number: ${{ github.event.inputs.issue_number }}"
           echo "Additional Prompts: ${{ github.event.inputs.additional_prompts }}"
           echo "Model to use: ${{ github.event.inputs.model_to_use }}"
 
   run_ai_issue_solver:
+    name: Run AI Issue Solver
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -68,13 +70,17 @@ jobs:
           sweagent run \
             --config .github/workflows/ai-issue-solver/general.yaml \
             --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
-            --problem_statement.github_url=https://github.com/haeter525/quark-engine/issues/${{ github.event.inputs.issue_number }} \
+            --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
-            --print_config > merged.yaml
-          cat merged.yaml
+            --print_config
 
       - name: Run SWE-agent with merged config
         run: |
-          OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} sweagent run --config merged.yaml
+          OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} sweagent run \
+            --config .github/workflows/ai-issue-solver/general.yaml \
+            --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
+            --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
+            --agent.model.name ${{ github.event.inputs.model_to_use }} \
+            --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
 
