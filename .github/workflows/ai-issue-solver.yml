@@ -39,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Clone SWE-agent
         run: |
@@ -59,7 +59,7 @@ jobs:
           mkdir -p ${{ env.SWE_AGENT_PATH }}/tools
           echo "Copying local workflow tools from ${{ github.workspace }}/.github/workflows/ai-issue-solver/ to ${{ env.SWE_AGENT_PATH }}/"
           cp -r "${{ github.workspace }}/.github/workflows/ai-issue-solver/." "${{ env.SWE_AGENT_PATH }}/"
-          
+
       - name: Install SWE-agent
         run: |
           echo "Changing directory to SWE-agent path: ${{ env.SWE_AGENT_PATH }}"
@@ -91,6 +91,34 @@ jobs:
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
+      - name: Check for Patch File
+        id: check_patch_file
+        run: |
+          if [ -n "${{ env.PATCH_FILE_PATH }}" ] && [ -f "${{ env.PATCH_FILE_PATH }}" ]; then
+            echo "patch_file_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "patch_file_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload Patch File
+        if: steps.check_patch_file.outputs.patch_file_exists == 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-file
+          path: ${{ env.PATCH_FILE_PATH }}
+
+      - name: Check for Trajectories Directory
+        id: check_trajectories_dir
+        run: |
+          if [ -d "trajectories" ]; then
+            echo "trajectories_dir_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "trajectories_dir_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload Trajectories Directory
+        if: steps.check_trajectories_dir.outputs.trajectories_dir_exists == 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trajectories-dir
+          path: trajectories
         # TODO - Save patch file, traj folder as artifact
         # TODO - Show PR link as summary
-
