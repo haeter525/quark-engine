@@ -79,7 +79,7 @@ env:
     github_url: "https://github.com/haeter525/quark-engine"
     base_commit: "master"
   deployment:
-    image: python:3.10
+    image: python:3.11
   post_startup_commands:
     - "pip install -e ."
   post_startup_command_timeout: 500
