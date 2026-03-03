@@ -1,0 +1,27 @@
+name: AI Issue Solver
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue Number"
+        required: true
+        type: number
+      additional_prompts:
+        description: "Additional Prompts"
+        required: false
+        type: string
+      model_to_use:
+        description: "Model to use"
+        required: true
+        type: string
+
+jobs:
+  print_inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parameters
+        run: |
+          echo "Issue Number: ${{ github.event.inputs.issue_number }}"
+          echo "Additional Prompts: ${{ github.event.inputs.additional_prompts }}"
+          echo "Model to use: ${{ github.event.inputs.model_to_use }}"
