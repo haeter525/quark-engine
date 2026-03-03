@@ -85,4 +85,5 @@ env:
   post_startup_command_timeout: 500
 actions:
   open_pr: true
-  skip_if_commits_reference_issue: false
+  pr_config:
+    skip_if_commits_reference_issue: false
