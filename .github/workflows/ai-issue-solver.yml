@@ -11,7 +11,7 @@ on:
         description: "Model to use"
         required: true
         type: string
-        default: gpt-4o
+        default: gpt-5.1-codex
       total_cost_limit:
         description: "Total cost limit (positive float)"
         required: true
@@ -85,7 +85,9 @@ jobs:
       - name: Run solver
         run: |
           echo "Running SWE-agent with the generated configuration..."
-          OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} sweagent run \
+          export OPENAI_API_KEY=${{ secrets.OPENAI_KEY }}
+          export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          sweagent run \
             --config .github/workflows/ai-issue-solver/general.yaml \
             --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
