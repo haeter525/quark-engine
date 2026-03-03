@@ -166,14 +166,19 @@ class Quark:
         :return: True or False
         """
         state = False
-        mutual_parent_lowerfunc = self.apkinfo.lowerfunc(mutual_parent)
+
+        # `lowerfunc` traverses the callee graph via the underlying core
+        # library and can therefore be expensive.  Fetch it once and reuse the
+        # cached structure while iterating through the method combinations
+        # below.
+        lowerfunc_cache = self.apkinfo.lowerfunc(mutual_parent)
 
         for first_call_method in first_method_list:
             for second_call_method in second_method_list:
 
                 seq_table = [
                     (call, number)
-                    for call, number in mutual_parent_lowerfunc
+                    for call, number in lowerfunc_cache
                     if call in (first_call_method, second_call_method)
                 ]
 
