@@ -80,6 +80,7 @@ jobs:
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
+            --agent.model.top_p null \
             --print_config
 
       - name: Run solver
@@ -92,7 +93,9 @@ jobs:
             --env.repo.github_url ${{ github.server_url}}/${{ github.repository }} \
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
-            --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
+            --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
+            --agent.model.top_p null
+
       - name: Check for Patch File
         id: check_patch_file
         run: |
