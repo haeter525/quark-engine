@@ -102,6 +102,9 @@ class PyEval:
             for second_type in ("int", "long", "float", "double"):
                 if first_type == second_type:
                     continue
+                # Dalvik opcode format is "{type1}-to-{type2}"
+                self.eval[f"{first_type}-to-{second_type}"] = self.CAST_TYPE
+                # Support legacy format for backward compatibility
                 self.eval[f"{first_type}-{second_type}"] = self.CAST_TYPE
 
         # binop_kind
@@ -638,16 +641,26 @@ class PyEval:
     @logger
     def CAST_TYPE(self, instruction):
         try:
-            part = instruction[0].split("-")
-            value_type = self.type_mapping[part[1]]
+            # instruction mnemonic can be either "{type1}-to-{type2}" (correct) or
+            # legacy "{type1}-{type2}". Normalize by removing an optional "-to" part.
+            parts = instruction[0].split("-")
+            # examples:
+            #   "int-to-long"   -> ["int", "to", "long"]
+            #   "int-long"      -> ["int", "long"]
+            #   "double-to-int" -> ["double", "to", "int"]
+            # We want source type at index 0 and destination type at last index.
+            src_type = parts[0]
+            dst_type = parts[-1]
 
-            if part[0] in ("double", "long"):
+            value_type = self.type_mapping[dst_type]
+
+            if src_type in ("double", "long"):
                 self._move_value_to_register(
                     instruction + [f"v{int(instruction[2][1:])+1}"],
                     "casting({src0}, {src1})",
                     value_type=value_type,
                 )
-            elif part[1] in ("double", "long"):
+            elif dst_type in ("double", "long"):
                 self._move_value_to_register(
                     instruction,
                     "casting({src0})",
