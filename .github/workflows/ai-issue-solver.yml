@@ -78,15 +78,14 @@ jobs:
           echo "Verifying SWE-agent installation..."
           sweagent --help
 
-      - name: Create SWE-agent output directory
-        id: create_output_dir
+      - name: Solve issue
         run: |
+          # Create output folder
           OUTPUT_DIR=$(mktemp -d -t sweagent-output-XXXXXX)
           echo "Created SWE-agent output directory: $OUTPUT_DIR"
           echo "SWE_AGENT_OUTPUT_PATH=$OUTPUT_DIR" >> "$GITHUB_ENV"
 
-      - name: Solve issue
-        run: |
+          # Run SWE-agent
           export OPENAI_API_KEY=${{ secrets.OPENAI_KEY }}
           export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
           sweagent run \
@@ -96,7 +95,7 @@ jobs:
             --problem_statement.github_url=${{ env.ISSUE_URL }} \
             --agent.model.name=${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit=${{ github.event.inputs.total_cost_limit }} \
-            --output_dir=${{ env.SWE_AGENT_OUTPUT_PATH }}
+            --output_dir=$OUTPUT_DIR
 
       - name: Upload trajectories
         if: always()
