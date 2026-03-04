@@ -112,21 +112,21 @@ jobs:
           name: patch-files
           path: ${{ env.SWE_AGENT_OUTPUT_PATH }}/**/*.patch
 
-      - name: Print summary 
+      - name: Print summary
         if: always()
         run: |
           # Print issue URL
           echo "::notice::Issue URL: ${{ env.ISSUE_URL }}"
-          
+
           # Extract and Print PR URL
           OUTPUT_PATH="${{ env.SWE_AGENT_OUTPUT_PATH }}"
           if [ -z "$OUTPUT_PATH" ] || [ ! -d "$OUTPUT_PATH" ]; then
             echo "::warning::PR URL: Not Found (SWE_AGENT_OUTPUT_PATH is invalid or empty)"
             exit 0
           fi
-          
+
           PR_URL=$(sed -n -E 's|.*swea-open_pr - 🎉 PR created as a draft at (https://github.com/haeter525/quark-engine/pull/[0-9]+).*|\1|p;T;q' "$OUTPUT_PATH"/**/*.info.log)
-          
+
           if [ -z "$PR_URL" ]; then
             echo "::warning::PR URL: Not Found"
           else
