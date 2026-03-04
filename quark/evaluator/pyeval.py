@@ -102,6 +102,11 @@ class PyEval:
             for second_type in ("int", "long", "float", "double"):
                 if first_type == second_type:
                     continue
+                # Dalvik cast opcodes are of the form "{type1}-to-{type2}".
+                # Keep the mapping consistent with the spec so we don't skip
+                # instructions produced by other tools (e.g. androguard).
+                self.eval[f"{first_type}-to-{second_type}"] = self.CAST_TYPE
+                # Accept legacy naming without "to" for backwards compatibility.
                 self.eval[f"{first_type}-{second_type}"] = self.CAST_TYPE
 
         # binop_kind
@@ -638,7 +643,14 @@ class PyEval:
     @logger
     def CAST_TYPE(self, instruction):
         try:
-            part = instruction[0].split("-")
+            mnemonic = instruction[0]
+            # Accept both legacy "type1-type2" and spec-compliant "type1-to-type2" forms.
+            if "-to-" in mnemonic:
+                src_type, _, dst_type = mnemonic.partition("-to-")
+                part = (src_type, dst_type)
+            else:
+                part = tuple(mnemonic.split("-"))
+
             value_type = self.type_mapping[part[1]]
 
             if part[0] in ("double", "long"):
