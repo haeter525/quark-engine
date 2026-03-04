@@ -112,15 +112,13 @@ jobs:
           name: patch-files
           path: ${{ env.SWE_AGENT_OUTPUT_PATH }}/**/*.patch
 
-      - name: Print Issue URL
+      - name: Print summary 
         if: always()
         run: |
+          # Print issue URL
           echo "::notice::Issue URL: ${{ env.ISSUE_URL }}"
-
-      # Extracts the PR URL from the SWE-agent info logs.
-      - name: Extract and Print PR URL
-        if: always()
-        run: |
+          
+          # Extract and Print PR URL
           OUTPUT_PATH="${{ env.SWE_AGENT_OUTPUT_PATH }}"
           if [ -z "$OUTPUT_PATH" ] || [ ! -d "$OUTPUT_PATH" ]; then
             echo "::warning::PR URL: Not Found (SWE_AGENT_OUTPUT_PATH is invalid or empty)"
@@ -135,10 +133,7 @@ jobs:
             echo "::notice::PR created: $PR_URL"
           fi
 
-      # Extracts the total cost from the SWE-agent debug logs.
-      - name: Extract and Print Total Cost
-        if: always()
-        run: |
+          # Extract and Print Total Cost
           OUTPUT_PATH="${{ env.SWE_AGENT_OUTPUT_PATH }}"
           if [ -z "$OUTPUT_PATH" ] || [ ! -d "$OUTPUT_PATH" ]; then
             echo "::warning::Total Cost: Not Found (SWE_AGENT_OUTPUT_PATH is invalid or empty)"
