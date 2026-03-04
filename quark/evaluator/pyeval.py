@@ -201,7 +201,13 @@ class PyEval:
             rawArgTypes = targetMethod[
                 targetMethod.find("(") + 1 : targetMethod.find(")")
             ].split(" ")
-            
+
+            # Handle cases like "new-array()" where there is no argument
+            # between parentheses. The split above would yield [''] which
+            # is not a real argument.
+            if rawArgTypes == [""]:
+                rawArgTypes = []
+
             for argType in rawArgTypes:
                 argTypes.append(argType)
                 if argType in ["J", "D"]:
@@ -209,8 +215,23 @@ class PyEval:
                     # because these types take up two registers.
                     argTypes.append(argType)
 
+            # If the argument types are still not enough (e.g. filled-new-array),
+            # infer them from the return type which represents the array element
+            # type. Example: "new-array()[I" -> element type is "I".
+            if len(argTypes) < len(regIdxList):
+                if targetMethod.startswith("new-array()"):
+                    element_type = targetMethod[targetMethod.index(")") + 1 :]
+                    # Strip one leading '[' to get the element type (if present).
+                    element_type = element_type[1:] if element_type.startswith("[") else element_type
+                    missing = len(regIdxList) - len(argTypes)
+                    argTypes.extend([element_type] * missing)
+                else:
+                    # Fallback: pad with empty strings to avoid IndexError
+                    argTypes.extend([""] * (len(regIdxList) - len(argTypes)))
+
             for argIdx in argIdxWithoutType:
-                valueOfRegList[argIdx].value_type = argTypes[argIdx]
+                if argIdx < len(argTypes):
+                    valueOfRegList[argIdx].value_type = argTypes[argIdx]
 
         methodCall = MethodCall(targetMethod, tuple(valueOfRegList))
 
