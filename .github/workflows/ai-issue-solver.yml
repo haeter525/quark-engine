@@ -76,7 +76,7 @@ jobs:
           echo "Generating and printing merged SWE-agent configuration to merged.yaml..."
           sweagent run \
             --config .github/workflows/ai-issue-solver/general.yaml \
-            --env.repo.github_url git@github.com:${{ github.repository }}.git \
+            --env.repo.path=${{ github.workspace }} --env.repo.type=local \
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
@@ -89,7 +89,7 @@ jobs:
           export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
           sweagent run \
             --config .github/workflows/ai-issue-solver/general.yaml \
-            --env.repo.github_url git@github.com:${{ github.repository }}.git \
+            --env.repo.path=${{ github.workspace }} --env.repo.type=local \
             --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
