@@ -96,39 +96,16 @@ jobs:
             --agent.model.name ${{ github.event.inputs.model_to_use }} \
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
 
-      - name: Check for Patch File
-        if: always()
-        id: check_patch_file
-        run: |
-          if [ -n "${{ env.PATCH_FILE_PATH }}" ] && [ -f "${{ env.PATCH_FILE_PATH }}" ]; then
-            echo "Patch file found at ${{ env.PATCH_FILE_PATH }}"
-            echo "patch_file_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Patch file not found or PATCH_FILE_PATH not set."
-            echo "patch_file_exists=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Upload Patch File
-        if: steps.check_patch_file.outputs.patch_file_exists == 'true' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: patch-file
-          path: ${{ env.PATCH_FILE_PATH }}
-
-      - name: Check for Trajectories Directory
-        if: always()
-        id: check_trajectories_dir
-        run: |
-          if [ -d "trajectories" ]; then
-            echo "Trajectories directory found."
-            echo "trajectories_dir_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Trajectories directory not found."
-            echo "trajectories_dir_exists=false" >> "$GITHUB_OUTPUT"
-          fi
       - name: Upload Trajectories Directory
-        if: steps.check_trajectories_dir.outputs.trajectories_dir_exists == 'true' && always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trajectories-dir
           path: trajectories
-        # TODO - Show PR link as summary
+
+      - name: Upload Patch File
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-files
+          path: trajectories/**/*.patch

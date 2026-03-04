@@ -53,6 +53,7 @@ agent:
       - path: tools/web_browser
       - path: tools/image_tools
       - path: tools/apk_downloader
+      - path: tools/quark_rules_downloader
     registry_variables:
       USE_FILEMAP: "true"
       SUBMIT_REVIEW_MESSAGES:
