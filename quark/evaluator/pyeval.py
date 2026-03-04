@@ -192,16 +192,19 @@ class PyEval:
         ]
         if len(argIdxWithoutType) > 0:
             # Set the missing value types based on the method's descriptor.
-            argTypes = (
-                []
-                if opcode.startswith("invoke-static")
-                else [targetMethod[: targetMethod.find("->")]]
-            )
+            base_type = None
+            if not opcode.startswith("invoke-static") and "->" in targetMethod:
+                base_type = targetMethod[: targetMethod.find("->")]
+
+            argTypes = [base_type] if base_type else []
 
             rawArgTypes = targetMethod[
                 targetMethod.find("(") + 1 : targetMethod.find(")")
             ].split(" ")
-            
+
+            # filter out empty strings to avoid spurious entries when no args
+            rawArgTypes = [arg for arg in rawArgTypes if arg]
+
             for argType in rawArgTypes:
                 argTypes.append(argType)
                 if argType in ["J", "D"]:
@@ -209,8 +212,26 @@ class PyEval:
                     # because these types take up two registers.
                     argTypes.append(argType)
 
+            # If no argument types were found (e.g., new-array has none),
+            # derive them from the return type when it is an array.
+            if len(argTypes) < len(valueOfRegList):
+                try:
+                    ret_type = targetMethod[targetMethod.index(")") + 1 :]
+                except ValueError:
+                    ret_type = ""
+
+                # Use the component type for arrays; otherwise, leave empty.
+                component_type = ret_type.lstrip("[") if ret_type.startswith("[") else ret_type
+                # If component_type is still empty, fall back to empty string.
+                component_type = component_type if component_type else ""
+
+                missing = len(valueOfRegList) - len(argTypes)
+                argTypes.extend([component_type] * missing)
+
             for argIdx in argIdxWithoutType:
-                valueOfRegList[argIdx].value_type = argTypes[argIdx]
+                # Guard against unexpected short argTypes; skip if unavailable.
+                if argIdx < len(argTypes):
+                    valueOfRegList[argIdx].value_type = argTypes[argIdx]
 
         methodCall = MethodCall(targetMethod, tuple(valueOfRegList))
 
