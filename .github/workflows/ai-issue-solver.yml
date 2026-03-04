@@ -1,4 +1,5 @@
 name: AI Issue Solver
+run-name: Solve Issue ${{ github.event.inputs.issue_number }}
 
 on:
   workflow_dispatch:
