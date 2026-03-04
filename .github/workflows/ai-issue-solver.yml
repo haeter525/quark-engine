@@ -53,7 +53,7 @@ jobs:
           echo "Checking out fixed version (commit 602b8accb865dc7b72525777a01df30ef31755a3)..."
           git checkout 602b8accb865dc7b72525777a01df30ef31755a3
 
-      - name: Copy SWE-agent files
+      - name: Copy tools and demos
         run: |
           echo "Creating tools directory in SWE-agent path: ${{ env.SWE_AGENT_PATH }}/tools"
           mkdir -p ${{ env.SWE_AGENT_PATH }}/tools
@@ -82,7 +82,7 @@ jobs:
             --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
             --print_config
 
-      - name: Run solver
+      - name: Solve
         run: |
           echo "Running SWE-agent with the generated configuration..."
           export OPENAI_API_KEY=${{ secrets.OPENAI_KEY }}
