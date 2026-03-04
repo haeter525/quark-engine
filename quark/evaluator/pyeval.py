@@ -192,22 +192,40 @@ class PyEval:
         ]
         if len(argIdxWithoutType) > 0:
             # Set the missing value types based on the method's descriptor.
-            argTypes = (
-                []
-                if opcode.startswith("invoke-static")
-                else [targetMethod[: targetMethod.find("->")]]
-            )
+            # Build argument types from method descriptor. For non-static invoke,
+            # the first argument is the instance (the part before "->"). If the
+            # descriptor does not contain "->" (e.g., synthetic ones like
+            # "new-array()"), we skip adding that implicit receiver.
+            argTypes = []
+            if opcode.startswith("invoke-") and not opcode.startswith("invoke-static"):
+                if "->" in targetMethod:
+                    argTypes.append(targetMethod[: targetMethod.find("->")])
 
-            rawArgTypes = targetMethod[
+            rawArgStr = targetMethod[
                 targetMethod.find("(") + 1 : targetMethod.find(")")
-            ].split(" ")
-            
+            ]
+            rawArgTypes = [arg for arg in rawArgStr.split(" ") if arg]
+
             for argType in rawArgTypes:
                 argTypes.append(argType)
                 if argType in ["J", "D"]:
                     # Put long and double twice
                     # because these types take up two registers.
                     argTypes.append(argType)
+
+            if argIdxWithoutType and len(argTypes) <= max(argIdxWithoutType):
+                # Fallback: infer argument types from return/component type (e.g.,
+                # filled-new-array has no argument descriptors but component type
+                # is encoded after the closing parenthesis).
+                ret_type = targetMethod[targetMethod.index(")") + 1 :]
+                component_type = ret_type[1:] if ret_type.startswith("[") else ret_type
+                # If component_type is still empty, keep the raw return type.
+                component_type = component_type or ret_type
+
+                while len(argTypes) <= max(argIdxWithoutType):
+                    argTypes.append(component_type)
+                    if component_type in ["J", "D"]:
+                        argTypes.append(component_type)
 
             for argIdx in argIdxWithoutType:
                 valueOfRegList[argIdx].value_type = argTypes[argIdx]
