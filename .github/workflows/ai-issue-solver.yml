@@ -26,13 +26,17 @@ jobs:
     steps:
       - name: Show Inputs
         run: |
-          echo "Issue Number: ${{ github.event.inputs.issue_number }}"
-          echo "Additional Prompts: ${{ github.event.inputs.additional_prompts }}"
           echo "Model to use: ${{ github.event.inputs.model_to_use }}"
+          echo "Issue Number: ${{ github.event.inputs.issue_number }}"
+          echo "Total cost limit: ${{ github.event.inputs.total_cost_limit }}"
 
   run_ai_issue_solver:
     name: Run AI Issue Solver
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: "3.11"
+      ISSUE_URL: ${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,7 +46,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "${{ env.PYTHON_VERSION }}"
 
       - name: Clone SWE-agent
         run: |
@@ -56,7 +60,7 @@ jobs:
           echo "Checking out fixed version (commit 602b8accb865dc7b72525777a01df30ef31755a3)..."
           git checkout 602b8accb865dc7b72525777a01df30ef31755a3
 
-      - name: Copy tools and demos
+      - name: Copy tools and AI examples
         run: |
           echo "Creating tools directory in SWE-agent path: ${{ env.SWE_AGENT_PATH }}/tools"
           mkdir -p ${{ env.SWE_AGENT_PATH }}/tools
@@ -74,17 +78,6 @@ jobs:
           echo "Verifying SWE-agent installation..."
           sweagent --help
 
-      - name: Generate config
-        run: |
-          echo "Generating and printing merged SWE-agent configuration to merged.yaml..."
-          sweagent run \
-            --config .github/workflows/ai-issue-solver/general.yaml \
-            --env.repo.path=${{ github.workspace }} --env.repo.type=local \
-            --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
-            --agent.model.name ${{ github.event.inputs.model_to_use }} \
-            --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }} \
-            --print_config
-
       - name: Create SWE-agent output directory
         id: create_output_dir
         run: |
@@ -94,22 +87,22 @@ jobs:
 
       - name: Solve issue
         run: |
-          echo "Running SWE-agent with the generated configuration..."
           export OPENAI_API_KEY=${{ secrets.OPENAI_KEY }}
           export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-          cd "${{ env.SWE_AGENT_OUTPUT_PATH }}"
           sweagent run \
-            --config ${{ github.workspace }}/.github/workflows/ai-issue-solver/general.yaml \
+            --config ${{ github.workspace }}/.github/workflows/ai-issue-solver/sweagent.yaml \
             --env.repo.path=${{ github.workspace }} --env.repo.type=local \
-            --problem_statement.github_url=${{ github.server_url}}/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }} \
-            --agent.model.name ${{ github.event.inputs.model_to_use }} \
-            --agent.model.total_cost_limit ${{ github.event.inputs.total_cost_limit }}
+            --env.deployment.image=python:${{ env.PYTHON_VERSION }} \
+            --problem_statement.github_url=${{ env.ISSUE_URL }} \
+            --agent.model.name=${{ github.event.inputs.model_to_use }} \
+            --agent.model.total_cost_limit=${{ github.event.inputs.total_cost_limit }} \
+            --output_dir=${{ env.SWE_AGENT_OUTPUT_PATH }}
 
-      - name: Upload solver trajectories
+      - name: Upload trajectories
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trajectories-dir
+          name: trajectory-files
           path: ${{ env.SWE_AGENT_OUTPUT_PATH }}
 
       - name: Upload code patch
@@ -118,3 +111,44 @@ jobs:
         with:
           name: patch-files
           path: ${{ env.SWE_AGENT_OUTPUT_PATH }}/**/*.patch
+
+      - name: Print Issue URL
+        if: always()
+        run: |
+          echo "::notice::Issue URL: ${{ env.ISSUE_URL }}"
+
+      # Extracts the PR URL from the SWE-agent info logs.
+      - name: Extract and Print PR URL
+        if: always()
+        run: |
+          OUTPUT_PATH="${{ env.SWE_AGENT_OUTPUT_PATH }}"
+          if [ -z "$OUTPUT_PATH" ] || [ ! -d "$OUTPUT_PATH" ]; then
+            echo "::warning::PR URL: Not Found (SWE_AGENT_OUTPUT_PATH is invalid or empty)"
+            exit 0
+          fi
+          
+          PR_URL=$(sed -n -E 's|.*swea-open_pr - 🎉 PR created as a draft at (https://github.com/haeter525/quark-engine/pull/[0-9]+).*|\1|p;T;q' "$OUTPUT_PATH"/**/*.info.log)
+          
+          if [ -z "$PR_URL" ]; then
+            echo "::warning::PR URL: Not Found"
+          else
+            echo "::notice::PR created: $PR_URL"
+          fi
+
+      # Extracts the total cost from the SWE-agent debug logs.
+      - name: Extract and Print Total Cost
+        if: always()
+        run: |
+          OUTPUT_PATH="${{ env.SWE_AGENT_OUTPUT_PATH }}"
+          if [ -z "$OUTPUT_PATH" ] || [ ! -d "$OUTPUT_PATH" ]; then
+            echo "::warning::Total Cost: Not Found (SWE_AGENT_OUTPUT_PATH is invalid or empty)"
+            exit 0
+          fi
+
+          TOTAL_COST=$(grep -oP 'total_cost=\K[0-9]+\.[0-9]+' "$OUTPUT_PATH"/**/*.debug.log | tail -1)
+
+          if [ -z "$TOTAL_COST" ]; then
+            echo "::warning::Total Cost: Not Found"
+          else
+            echo "::notice::Total Cost: $TOTAL_COST"
+          fi
