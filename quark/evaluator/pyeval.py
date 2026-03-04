@@ -102,6 +102,9 @@ class PyEval:
             for second_type in ("int", "long", "float", "double"):
                 if first_type == second_type:
                     continue
+                # Support both the correct Dalvik naming ("{type1}-to-{type2}") and the
+                # legacy form ("{type1}-{type2}") for backward compatibility.
+                self.eval[f"{first_type}-to-{second_type}"] = self.CAST_TYPE
                 self.eval[f"{first_type}-{second_type}"] = self.CAST_TYPE
 
         # binop_kind
@@ -638,7 +641,11 @@ class PyEval:
     @logger
     def CAST_TYPE(self, instruction):
         try:
-            part = instruction[0].split("-")
+            # CAST instructions are named "{type1}-to-{type2}" in the Dalvik spec.
+            # Keep supporting the legacy "{type1}-{type2}" form for backward
+            # compatibility with older Quark code and potential saved states.
+            opcode = instruction[0].replace("-to-", "-")
+            part = opcode.split("-")
             value_type = self.type_mapping[part[1]]
 
             if part[0] in ("double", "long"):
