@@ -33,7 +33,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           sed '/--/q' debian/changelog | sed '1, 2d' | head -n -2 > changelog.txt
-          codex --full-auto \
+          codex exec --full-auto \
             """
               Remove the '*' and indent in changelog.txt.
             """
