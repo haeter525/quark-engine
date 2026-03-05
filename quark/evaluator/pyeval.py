@@ -194,20 +194,40 @@ class PyEval:
             # Set the missing value types based on the method's descriptor.
             argTypes = (
                 []
-                if opcode.startswith("invoke-static")
+                if opcode.startswith("invoke-static") or "->" not in targetMethod
                 else [targetMethod[: targetMethod.find("->")]]
             )
 
-            rawArgTypes = targetMethod[
-                targetMethod.find("(") + 1 : targetMethod.find(")")
-            ].split(" ")
-            
+            rawArgTypes = list(
+                filter(
+                    None,
+                    targetMethod[
+                        targetMethod.find("(") + 1 : targetMethod.find(")")
+                    ].split(" "),
+                )
+            )
+
             for argType in rawArgTypes:
                 argTypes.append(argType)
                 if argType in ["J", "D"]:
                     # Put long and double twice
                     # because these types take up two registers.
                     argTypes.append(argType)
+
+            # Some instructions (e.g., new-array) may not declare argument types
+            # inside parentheses. In that case, fall back to using the return
+            # type (array element type) to fill the missing entries.
+            if len(argTypes) <= max(argIdxWithoutType):
+                return_type = targetMethod[targetMethod.index(")") + 1 :]
+                element_type = return_type.lstrip("[")
+                if element_type:
+                    while len(argTypes) <= max(argIdxWithoutType):
+                        argTypes.append(element_type)
+
+                else:
+                    # If we still can't determine a type, default to unknown type.
+                    while len(argTypes) <= max(argIdxWithoutType):
+                        argTypes.append("")
 
             for argIdx in argIdxWithoutType:
                 valueOfRegList[argIdx].value_type = argTypes[argIdx]
