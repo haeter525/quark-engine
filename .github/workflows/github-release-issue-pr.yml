@@ -48,7 +48,7 @@ jobs:
       - name: Generate PR summary issue
         id: gen_issue
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -87,7 +87,7 @@ jobs:
 
       - name: Update changelog for Kali package
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
         run: |          
           dateToday="$(TZ=Asia/Taipei date +'%a, %d %b %Y %H:%M:%S %z')"
@@ -134,7 +134,7 @@ jobs:
 
       - name: Update version information
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
         run: |
             versionNum=${{ steps.gen_issue.outputs.version }}

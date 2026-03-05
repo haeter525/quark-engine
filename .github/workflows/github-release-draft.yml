@@ -28,7 +28,7 @@ jobs:
 
       - name: Collect changelog from PR
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
           GH_TOKEN: ${{ github.token }}
         run: |
