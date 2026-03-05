@@ -39,7 +39,7 @@ jobs:
           
       - name: Install Codex CLI
         run: |
-          sudo npm install -g @openai/codex@0.1.2505172129
+          sudo npm install -g @openai/codex@0.110.0
 
       - name: Install dependencies
         run: |
@@ -48,7 +48,7 @@ jobs:
       - name: Generate PR summary issue
         id: gen_issue
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -62,7 +62,7 @@ jobs:
           lastVersionNum="$(git tag --sort=-creatordate | head -n 1)"
           monthOfLastRelease=$(echo $lastVersionNum | awk -F. '{print $2}')
           
-          codex -a auto-edit -q \
+          codex exec --full-auto \
             """ 
               Follow the following instructions:
                 1. Read the git commit messages from the month $monthOfLastRelease of this year.
@@ -87,12 +87,12 @@ jobs:
 
       - name: Update changelog for Kali package
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
         run: |          
           dateToday="$(TZ=Asia/Taipei date +'%a, %d %b %Y %H:%M:%S %z')"
           versionNum=${{ steps.gen_issue.outputs.version }}
-          codex -a auto-edit -q \
+          codex exec --full-auto \
             """ 
               Follow the instructions below to update debian/changelog for $versionNum. 
               In debian/changelog, you are going to append a new section, and describe what the new
@@ -134,11 +134,11 @@ jobs:
 
       - name: Update version information
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
         run: |
             versionNum=${{ steps.gen_issue.outputs.version }}
-            codex -a auto-edit -q \
+            codex exec --full-auto \
               """
                 Update version information in the following files for next release $versionNum:
                   1. debian/control: Standards-Version

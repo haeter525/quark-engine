@@ -24,16 +24,16 @@ jobs:
           
       - name: Install Codex CLI
         run: |
-          sudo npm install -g @openai/codex@0.1.2505172129
+          sudo npm install -g @openai/codex@0.110.0
 
       - name: Collect changelog from PR
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+          CODEX_API_KEY: ${{ secrets.OPENAI_KEY }}
           CODEX_QUIET_MODE: 1
           GH_TOKEN: ${{ github.token }}
         run: |
           sed '/--/q' debian/changelog | sed '1, 2d' | head -n -2 > changelog.txt
-          codex -a auto-edit -q \
+          codex exec --full-auto \
             """
               Remove the '*' and indent in changelog.txt.
             """
