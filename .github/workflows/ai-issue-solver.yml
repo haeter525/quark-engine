@@ -136,7 +136,7 @@ jobs:
             exit 0
           fi
 
-          PR_URL=$(sed -n -E 's|.*swea-open_pr - 🎉 PR created as a draft at (https://github.com/haeter525/quark-engine/pull/[0-9]+).*|\1|p;T;q' "$OUTPUT_PATH"/**/*.info.log)
+          PR_URL=$(sed -n -E 's|.*swea-open_pr - 🎉 PR created as a draft at (${{ github.server_url}}/${{ github.repository }}/pull/[0-9]+).*|\1|p;T;q' "$OUTPUT_PATH"/**/*.info.log)
 
           if [ -z "$PR_URL" ]; then
             echo "::warning::PR URL: Not Found"
