@@ -1,11 +1,4 @@
-# This is a demo file generated from trajectory file:
-# trajectories/shengfeng/config__gpt-4o__t-0.00__p-1.00__c-2.00___ev-flow__quark-engine-i864/ev-flow__quark-engine-i864/ev-flow__quark-engine-i864.traj
-# You can use this demo file to replay the actions in the trajectory with run_replay.py.
-# You can edit the content of the actions in this file to modify the replay behavior.
-# NOTICE:
-#         Only the actions of the assistant will be replayed.
-#         You do not need to modify the observation's contents or any other fields.
-#         You can add or remove actions to modify the replay behavior.
+# An example demonstrating how AI agents leverage internal tools to solve Quark Engine issues.
 history:
   - role: assistant
     content: ''

@@ -44,7 +44,7 @@ agent:
       {{demonstration}}
       --- END OF DEMONSTRATION ---
     demonstrations:
-      - demos/fix-incorrect-opcode-naming/fix-incorrect-opcode-naming.yaml
+      - demos/tool-usage-example/tool-usage-example.yaml
   tools:
     env_variables:
       PAGER: cat
