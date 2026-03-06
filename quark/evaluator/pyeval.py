@@ -194,13 +194,15 @@ class PyEval:
             # Set the missing value types based on the method's descriptor.
             argTypes = (
                 []
-                if opcode.startswith("invoke-static")
+                if opcode.startswith("invoke-static") or "->" not in targetMethod
                 else [targetMethod[: targetMethod.find("->")]]
             )
 
             rawArgTypes = targetMethod[
                 targetMethod.find("(") + 1 : targetMethod.find(")")
-            ].split(" ")
+            ]
+            # Split by space but ignore empty strings
+            rawArgTypes = [arg for arg in rawArgTypes.split(" ") if arg]
             
             for argType in rawArgTypes:
                 argTypes.append(argType)
@@ -208,6 +210,28 @@ class PyEval:
                     # Put long and double twice
                     # because these types take up two registers.
                     argTypes.append(argType)
+
+            # If we still don't have enough argument types (e.g., filled-new-array
+            # creating an array of primitives), try to infer the element type from
+            # the return descriptor. For example, "new-array()[I" should set the
+            # argument type to "I" for each provided element.
+            if argIdxWithoutType:
+                max_idx = max(argIdxWithoutType)
+                if len(argTypes) <= max_idx:
+                    ret_type = ""
+                    if ")" in targetMethod:
+                        ret_type = targetMethod[targetMethod.index(")") + 1 :]
+
+                    inferred_type = ""
+                    if ret_type.startswith("[") and len(ret_type) > 1:
+                        # Use the component type for arrays.
+                        inferred_type = ret_type[1:]
+                    else:
+                        inferred_type = ret_type
+
+                    # Pad argTypes so that indexing is safe.
+                    while len(argTypes) <= max_idx:
+                        argTypes.append(inferred_type)
 
             for argIdx in argIdxWithoutType:
                 valueOfRegList[argIdx].value_type = argTypes[argIdx]
