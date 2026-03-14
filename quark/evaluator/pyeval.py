@@ -7,6 +7,7 @@
 # http://pallergabor.uw.hu/androidblog/dalvik_opcodes.html
 
 import logging
+from typing import Sequence
 from quark import config
 from quark.core.struct.registerobject import RegisterObject
 from quark.core.struct.tableobject import TableObject
@@ -171,24 +172,21 @@ class PyEval:
             except IndexError:
                 pass
 
-        valueOfRegList = []
-        # query the value from hash table based on register index.
-        for index in regIdxList:
-            if not self.table_obj.getRegValues(index):
-                # Insert a RegisterObject if one is missing.
-                # Therefore, we can trace the usage of this register.
-                self.table_obj.insert(
-                    index, RegisterObject(Primitive("", None))
-                )
-
-            value = self.table_obj.getLatestRegValue(index)
-            valueOfRegList.append(value.value)
+        # Collect RegisterObjects according to register indexes.
+        # Insert a new RegisterObject if one is missing.
+        # Therefore, we can trace the usage of this register.
+        sourceRegisters = (
+            self.table_obj.getOrInsertLatestRegValue(
+                index, self._generateEmptyRegister
+            ) for index in regIdxList
+        )
+        valueOfRegList = [reg.value for reg in sourceRegisters]
 
         # Check whether any argument is missing a value type.
         argIdxWithoutType = [
             idx
             for idx, arg in enumerate(valueOfRegList)
-            if isinstance(arg, Primitive) and arg.value_type == ""
+            if isinstance(arg, Primitive) and arg.isTypeUnknown()
         ]
         if len(argIdxWithoutType) > 0:
             # Set the missing value types based on the method's descriptor.
@@ -879,6 +877,10 @@ class PyEval:
         )
 
         self.table_obj.insert(destination, new_register)
+
+    @staticmethod
+    def _generateEmptyRegister() -> RegisterObject:
+        return RegisterObject(Primitive("", None))
 
     @staticmethod
     def get_method_pattern(
