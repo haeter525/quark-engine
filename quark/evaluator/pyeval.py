@@ -562,13 +562,43 @@ class PyEval:
             log.exception(f"{e} in MOVE_KIND")
 
     @logger
-    def FILLED_NEW_ARRAY_KIND(self, instruction):
-        value_type = instruction[-1]
+    def FILLED_NEW_ARRAY_KIND(self, instruction: Sequence[str]):
+        """
+        Handles 'filled-new-array' and 'filled-new-array/range' instructions.
 
-        try:
-            self._invoke(instruction[:-1] + [f"new-array(){value_type}"])
-        except IndexError as e:
-            log.exception(f"{e} in MOVE_KIND")
+        It expects the registers for 'filled-new-array/range' to be expanded.
+        For example, an instruction like '"filled-new-array/range" {v1 .. v3}, 
+        [I' implies that the `instruction` list should contain the individual
+        registers (e.g., ['filled-new-array/range', 'v1', 'v2', 'v3', '[I']).
+        """
+        mnemonic, *regList, arrayType = instruction
+        regIdxList = [int(r[1:]) for r in regList]
+        elementType = arrayType[1:]
+
+        # Collect RegisterObjects according to register indexes.
+        # Insert a new RegisterObject if one is missing.
+        # Therefore, we can trace the usage of this register.
+        sourceRegisters = (
+            self.table_obj.getOrInsertLatestRegValue(
+                index, self._generateEmptyRegister
+            ) for index in regIdxList
+        )
+        valueOfRegList = [reg.value for reg in sourceRegisters]
+
+        # Check whether any register is missing a value type.
+        for value in valueOfRegList:
+            if isinstance(value, Primitive) and value.isTypeUnknown():
+                value.value_type = elementType
+
+        argStr = (f"{{src{idx}}}" for idx in range(len(regIdxList))) 
+        newValue = BytecodeOps(
+            strFormat=f"{mnemonic}({','.join(argStr)}){{data}}",
+            operands=tuple(valueOfRegList),
+            data=arrayType
+        )
+
+        self.ret_stack.append(newValue)
+        self.ret_type = arrayType
 
     @logger
     def AGET_WIDE_KIND(self, instruction):
