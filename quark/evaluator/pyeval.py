@@ -200,8 +200,8 @@ class PyEval:
 
             rawArgTypes = targetMethod[
                 targetMethod.find("(") + 1 : targetMethod.find(")")
-            ].split(" ")
-            
+            ].split()
+
             for argType in rawArgTypes:
                 argTypes.append(argType)
                 if argType in ["J", "D"]:
@@ -590,7 +590,7 @@ class PyEval:
             if isinstance(value, Primitive) and value.isTypeUnknown():
                 value.value_type = elementType
 
-        argStr = (f"{{src{idx}}}" for idx in range(len(regIdxList))) 
+        argStr = (f"{{src{idx}}}" for idx in range(len(regIdxList)))
         newValue = BytecodeOps(
             strFormat=f"{mnemonic}({','.join(argStr)}){{data}}",
             operands=tuple(valueOfRegList),
@@ -603,7 +603,6 @@ class PyEval:
     @logger
     def AGET_WIDE_KIND(self, instruction):
         array_reg_index = int(instruction[2][1:])
-
 
         try:
             array_reg = self.table_obj.getLatestRegValue(array_reg_index)
