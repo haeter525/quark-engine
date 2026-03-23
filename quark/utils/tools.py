@@ -21,12 +21,14 @@ def contains(subset_to_check: List[MethodObject], target_list: List[MethodObject
 
     Objects of class MethodObject are equal, if class_name, name and descriptor are equal.
     -----------------------------------------------------------------
-    subset_to_check = ["getCellLocation", "sendTextMessage"]
-    target_list = ["put", "getCellLocation", "query", "sendTextMessage"]
-    then it will return true.
+    subset_to_check = [MethodObject("getCellLocation"), MethodObject("sendTextMessage")]
+    target_list = [MethodObject("put"), MethodObject("getCellLocation"),
+                   MethodObject("query"), MethodObject("sendTextMessage")]
+    then it will return True.
     -----------------------------------------------------------------
-    subset_to_check = ["getCellLocation", "sendTextMessage"]
-    target_list = ["sendTextMessage", "put", "getCellLocation", "query"]
+    subset_to_check = [MethodObject("getCellLocation"), MethodObject("sendTextMessage")]
+    target_list = [MethodObject("sendTextMessage"), MethodObject("put"),
+                   MethodObject("getCellLocation"), MethodObject("query")]
     then it will return False.
     """
 

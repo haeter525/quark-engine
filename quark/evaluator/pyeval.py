@@ -668,7 +668,7 @@ class PyEval:
                     "casting({src0})",
                     value_type=value_type,
                 )
-        except IndexError as e:
+        except (IndexError, KeyError) as e:
             log.exception(f"{e} in {instruction[0]}")
 
     @logger
