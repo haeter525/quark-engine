@@ -62,37 +62,6 @@ Bundled scripts in `.claude/skills/code-review/scripts/` automate the checklist 
 
 **Prerequisites:** `pip install black pylint mypy codespell bandit pytest-cov` (or use `uvx` for one-off runs).
 
-### Available scripts
-
-- **`.claude/skills/code-review/scripts/check_style.sh`** — Runs `black --check` (formatting) and `pylint` (linting)
-- **`.claude/skills/code-review/scripts/check_types.sh`** — Runs `mypy --strict` to verify type hint completeness
-- **`.claude/skills/code-review/scripts/check_spelling.sh`** — Runs `codespell` to find spelling errors
-- **`.claude/skills/code-review/scripts/check_coverage.sh`** — Runs `pytest-cov` and fails if coverage is below threshold (default: 80%)
-- **`.claude/skills/code-review/scripts/check_security.sh`** — Runs `bandit` security scan (MEDIUM and HIGH severity)
-- **`.claude/skills/code-review/scripts/check_commit.sh`** — Validates commit message against conventional commit format
-- **`.claude/skills/code-review/scripts/run_all.sh`** — Runs all checks in sequence with pass/fail summary
-
-### Usage
-
-Run scripts from the repo root:
-
-```bash
-# Run all automated checks on changed files
-bash .claude/skills/code-review/scripts/run_all.sh
-
-# Run all checks on a specific directory
-bash .claude/skills/code-review/scripts/run_all.sh quark/evaluator/
-
-# Run individual checks
-bash .claude/skills/code-review/scripts/check_style.sh quark/core/quark.py
-bash .claude/skills/code-review/scripts/check_security.sh quark/evaluator/pyeval.py
-bash .claude/skills/code-review/scripts/check_coverage.sh quark/evaluator
-
-# Override defaults via environment variables
-COVERAGE_THRESHOLD=90 bash .claude/skills/code-review/scripts/check_coverage.sh
-BASE_BRANCH=develop bash .claude/skills/code-review/scripts/run_all.sh
-```
-
 ### Review workflow
 
 #### Phase 1 — Understand
