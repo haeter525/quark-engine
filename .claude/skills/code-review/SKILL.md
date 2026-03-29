@@ -95,22 +95,33 @@ BASE_BRANCH=develop bash .claude/skills/code-review/scripts/run_all.sh
 
 ### Review workflow
 
-1. **Build codebase and feature awareness** before reviewing:
-   - Read the changed files and their surrounding context (callers, callees, related modules)
-   - MUST fully understand the feature's intent from the linked issue, branch name, and commit messages. ASK QUESTIONS if you don't know.
-   - Identify how the changes fit into the existing architecture (e.g., does a new method in `TableObject` affect all callers in `PyEval`?)
-   - Check whether the change duplicates, conflicts with, or misuses existing patterns in the codebase
-2. **Produce a test plan blueprint** based on the Code Quality Checklist:
-   - List every test item you intend to run (automated scripts and manual checks), with a brief description of what each item verifies
+#### Phase 1 — Understand
+
+1. Read the changed files and their surrounding context (callers, callees, related modules)
+2. Understand the feature's intent from the linked issue, branch name, and commit messages. **Ask questions if unclear.**
+3. Identify how the changes fit into the existing architecture (e.g., does a new method in `TableObject` affect all callers in `PyEval`?)
+4. Check whether the change duplicates, conflicts with, or misuses existing patterns in the codebase
+
+#### Phase 2 — Plan
+
+5. Produce a **test plan blueprint** based on the Code Quality Checklist:
+   - List every test item (automated scripts and manual checks), with a brief description of what each verifies
    - Present the blueprint to the user for review
-   - **Wait for the user to confirm the plan before executing any tests**
-3. Run all automated checks: `bash .claude/skills/code-review/scripts/run_all.sh <changed-files-or-dir>`
-4. If any check fails, fix the issues and re-run the failing script
-5. **Handle tooling errors gracefully**: if a test fails due to a non-target error (e.g., missing `pylint`, `black`, `bandit`, or other tooling dependency), attempt to install/fix and retry — up to **3 attempts**. If still failing after 3 attempts, **skip the test** and record it for the final summary.
-6. Repeat until all automated checks pass (or are skipped per rule above)
-7. Review checklist items without an **automate** marker — these require manual judgment, informed by the codebase/feature context gathered in step 1
-8. Only mark the review as complete when both automated and manual checks pass
-9. In the final summary, include a **Skipped Tests** section listing any tests that were skipped due to unresolvable tooling errors, with the error details
+   - **Wait for user confirmation before executing any tests**
+
+#### Phase 3 — Automated checks
+
+6. Run all automated checks: `bash .claude/skills/code-review/scripts/run_all.sh <changed-files-or-dir>`
+7. Fix failures and re-run until all checks pass. If a failure is due to a missing dependency, install and retry up to **3 attempts**; after that, **skip** the check and record it for the final summary.
+
+#### Phase 4 — Manual review
+
+9. Review checklist items without an **automate** marker — these require manual judgment, informed by the context gathered in Phase 1
+
+#### Phase 5 — Finalize
+
+10. Mark the review as complete only when both automated and manual checks pass
+11. In the final summary, include a **Skipped Tests** section listing any checks skipped due to unresolvable tooling errors, with error details
 
 ## Summary Format
 
