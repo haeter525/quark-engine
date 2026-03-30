@@ -1,3 +1,15 @@
+quark-engine (26.4.1-0kali1) kali-dev; urgency=medium
+
+  * Document Enhancement
+
+    - Add FAQ documentation for Quark Engine. (#241)
+
+  * Bug Fix
+
+    - Fix rule path handling when specifying custom rules. (#238)
+
+ --  Zin Wong <chriswangxxxxx@gmail.com>  Mon, 30 Mar 2026 10:38:51 +0800
+
 quark-engine (26.3.1-0kali1) kali-dev; urgency=medium
 
   * Performance Improvement
