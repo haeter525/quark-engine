@@ -145,7 +145,6 @@ class PyEval:
 
         self.table_obj = TableObject()
         self.ret_stack = []
-        self.ret_type = ""
         self.apkinfo = apkinfo
 
     def _invoke(self, instruction, look_up=False, skip_self=False):
@@ -228,23 +227,20 @@ class PyEval:
                 value.value = methodCall
 
         if not targetMethod.endswith(")V"):
-            # push the return value into ret_stack
-            self.ret_stack.append(methodCall)
-
-            # Extract the type of return value
-            self.ret_type = targetMethod[targetMethod.index(")") + 1 :]
+            # push the return value and its type into ret_stack
+            retType = targetMethod[targetMethod.index(")") + 1 :]
+            self.ret_stack.append((methodCall, retType))
 
     def _move_result(self, instruction):
 
         reg = instruction[1]
         index = int(reg[1:])
         try:
-            pre_ret = self.ret_stack.pop()
+            pre_ret, ret_type = self.ret_stack.pop()
             variable_object = RegisterObject(
-                value=pre_ret, value_type=self.ret_type
+                value=pre_ret, value_type=ret_type
             )
             self.table_obj.insert(index, variable_object)
-            self.ret_type = ""
         except IndexError as e:
 
             log.exception(f"{e} in _move_result")
@@ -376,10 +372,10 @@ class PyEval:
         reg = instruction[1]
         index = int(reg[1:])
         try:
-            pre_ret = self.ret_stack.pop()
-            variable_object = RegisterObject(value=pre_ret, value_type=self.ret_type)
+            pre_ret, ret_type = self.ret_stack.pop()
+            variable_object = RegisterObject(value=pre_ret, value_type=ret_type)
             variable_object2 = RegisterObject(
-                value=pre_ret, value_type=self.ret_type
+                value=pre_ret, value_type=ret_type
             )
             self.table_obj.insert(index, variable_object)
             self.table_obj.insert(index + 1, variable_object2)
@@ -590,13 +586,12 @@ class PyEval:
 
         argStr = (f"{{src{idx}}}" for idx in range(len(regIdxList)))
         newValue = BytecodeOps(
-            strFormat=f"{mnemonic}({','.join(argStr)}){{data}}",
+            strFormat=f"{mnemonic}({', '.join(argStr)}){{data}}",
             operands=tuple(valueOfRegList),
             data=arrayType
         )
 
-        self.ret_stack.append(newValue)
-        self.ret_type = arrayType
+        self.ret_stack.append((newValue, arrayType))
 
     @logger
     def AGET_WIDE_KIND(self, instruction):

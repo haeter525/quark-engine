@@ -370,8 +370,8 @@ class TestPyEval:
         assert v9.called_by_func[1].resolve() == "some_function()Lclass;(Lcom/google/progress/SMSHelper;,some_string)"
 
         assert len(pyeval.ret_stack) == 1
-        assert pyeval.ret_stack[0].resolve() == "some_function()Lclass;(Lcom/google/progress/SMSHelper;,some_string)"
-        assert pyeval.ret_type == "Lclass;"
+        assert pyeval.ret_stack[0][0].resolve() == "some_function()Lclass;(Lcom/google/progress/SMSHelper;,some_string)"
+        assert pyeval.ret_stack[0][1] == "Lclass;"
 
     def test_invoke_with_func_not_returning_value(self, pyeval):
         instruction = ["invoke-kind", "v4", "v9", "some_function()V"]
@@ -399,7 +399,7 @@ class TestPyEval:
         assert len(v9.called_by_func) == 1
         assert v9.called_by_func[0].resolve() == "java.io.file.close()"
         assert len(pyeval.ret_stack) == 1
-        assert pyeval.ret_stack[0].resolve() == "some-func()Lclass;()"
+        assert pyeval.ret_stack[0][0].resolve() == "some-func()Lclass;()"
 
     # Tests for invoke_virtual
     def test_invoke_virtual_with_valid_mnemonic(self, pyeval):
@@ -427,8 +427,8 @@ class TestPyEval:
         pyeval.eval[instruction[0]](instruction)
 
         assert len(pyeval.ret_stack) == 1
-        assert pyeval.ret_stack[0].resolve() == "Landroid/support/v4/util/SimpleArrayMap;->isEmpty()Z(ArrayMap object)"
-        assert pyeval.ret_type == "Z"
+        assert pyeval.ret_stack[0][0].resolve() == "Landroid/support/v4/util/SimpleArrayMap;->isEmpty()Z(ArrayMap object)"
+        assert pyeval.ret_stack[0][1] == "Z"
 
     def test_invoke_virtual_range_with_valid_mnemonic(self, pyeval):
         instruction = [
@@ -533,8 +533,8 @@ class TestPyEval:
         pyeval.eval[instruction[0]](instruction)
 
         assert len(pyeval.ret_stack) == 1
-        assert pyeval.ret_stack[0].resolve() == "Landroid/support/v4/util/ArrayMap;->entrySet()Ljava/util/Set;(ArrayMap object)"
-        assert pyeval.ret_type == "Ljava/util/Set;"
+        assert pyeval.ret_stack[0][0].resolve() == "Landroid/support/v4/util/ArrayMap;->entrySet()Ljava/util/Set;(ArrayMap object)"
+        assert pyeval.ret_stack[0][1] == "Ljava/util/Set;"
 
     def test_invoke_interface_range_with_valid_mnemonic(self, pyeval):
         instruction = [
@@ -571,8 +571,8 @@ class TestPyEval:
         pyeval.eval[instruction[0]](instruction)
 
         assert len(pyeval.ret_stack) == 1
-        assert pyeval.ret_stack[0].resolve() == "Landroid/support/v4/util/SimpleArrayMap;->toString()Ljava/lang/String;(ArrayMap object)"
-        assert pyeval.ret_type == "Ljava/lang/String;"
+        assert pyeval.ret_stack[0][0].resolve() == "Landroid/support/v4/util/SimpleArrayMap;->toString()Ljava/lang/String;(ArrayMap object)"
+        assert pyeval.ret_stack[0][1] == "Ljava/lang/String;"
 
     def test_invoke_super_range_with_valid_mnemonic(self, pyeval):
         instruction = ["invoke-super/range", "v4", "v9", "some_function()V"]
@@ -652,8 +652,7 @@ class TestPyEval:
             ),
         )
         expected_return_type = "Lclass;"
-        pyeval.ret_stack.append(expected_return_value)
-        pyeval.ret_type = expected_return_type
+        pyeval.ret_stack.append((expected_return_value, expected_return_type))
 
         pyeval._move_result(instruction)
 
@@ -674,7 +673,7 @@ class TestPyEval:
     def test_move_result_wide_with_valid_mnemonic(self, pyeval):
         instruction = ["move-result-wide", "v1"]
         return_value = Primitive("Return Value", "")
-        pyeval.ret_stack.append(return_value)
+        pyeval.ret_stack.append((return_value, "J"))
 
         pyeval.MOVE_RESULT_WIDE(instruction)
 
@@ -845,11 +844,11 @@ class TestPyEval:
 
         pyeval.eval[instruction[0]](instruction)
 
-        assert pyeval.ret_stack[0].resolve() == (
+        assert pyeval.ret_stack[0][0].resolve() == (
             f"{filled_array_kind}(Lcom/google/progress/SMSHelper;"
-            ",some_string)[Ljava/lang/Object;"
+            ", some_string)[Ljava/lang/Object;"
         )
-        assert pyeval.ret_type == "[Ljava/lang/Object;"
+        assert pyeval.ret_stack[0][1] == "[Ljava/lang/Object;"
 
     def test_filled_array_kind_with_primitive_type(
         self, pyeval, filled_array_kind
@@ -859,9 +858,9 @@ class TestPyEval:
         pyeval.eval[instruction[0]](instruction)
 
         assert (
-            pyeval.ret_stack[0].resolve() == f"{filled_array_kind}(a_float)[F"
+            pyeval.ret_stack[0][0].resolve() == f"{filled_array_kind}(a_float)[F"
         )
-        assert pyeval.ret_type == "[F"
+        assert pyeval.ret_stack[0][1] == "[F"
 
     def test_filled_array_kind_infers_primitive_types(
         self, pyeval, filled_array_kind
