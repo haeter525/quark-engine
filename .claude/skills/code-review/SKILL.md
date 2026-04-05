@@ -51,6 +51,7 @@ Based on the project's review standard. Each item is tagged with a review role.
 
 ### 7. PR Preparation
 - [ ] [Staff Eng] Commit message follows conventional commit format and passes sentence-quality checks — **automate**: `bash .claude/skills/code-review/scripts/check_commit.sh`
+- [ ] [Staff Eng] If the commit borrows ideas or code from an open-source project: the commit title or body must name the referenced project and state its license (e.g. `Inspired by androguard (Apache-2.0)`). Also include the following notice: "If the project authors prefer we not adapt their work, they may open an issue and we will remove the relevant code."
 - [ ] [Staff Eng] PR title and description reference the relevant issue
 - [ ] [QA] Smoke test counts updated if behavior counts changed (see `@.claude/skills/workflows.md` → Updating Smoke Test Counts)
 - [ ] [Lang] If any `quark.script` public API changed: update `docs/source/quark_script.rst` and compile docs locally to confirm no errors
