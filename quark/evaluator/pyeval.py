@@ -12,7 +12,7 @@ from quark import config
 from quark.core.struct.registerobject import RegisterObject
 from quark.core.struct.tableobject import TableObject
 from quark.core.struct.valuenode import (
-    Primitive, MethodCall, BytecodeOps
+    Primitive, MethodCall, BytecodeOps, ValueNode
 )
 from quark.utils.logger import defaultHandler
 
@@ -144,7 +144,7 @@ class PyEval:
         }
 
         self.table_obj = TableObject()
-        self.ret_stack = []
+        self.ret_stack: list[tuple[ValueNode, str]] = []
         self.apkinfo = apkinfo
 
     def _invoke(self, instruction, look_up=False, skip_self=False):
