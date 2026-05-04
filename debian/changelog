@@ -1,3 +1,27 @@
+quark-engine (26.5.1-0kali1) kali-dev; urgency=medium
+
+  * Dependency Update
+
+    - Bump pip, flask, and werkzeug to newer versions. (#862, #865, and #883)
+
+  * Bug Fix
+
+    - Fix instruction names for `PyEval.CAST_TYPE`, correct `contains` type annotation, and resolve an `AttributeError` in `BaseApkinfo.__slots__`. (#872, #885, and #879)
+
+  * New Feature
+
+    - Process `invoke-polymorphic` instructions in `AndroguardImp.get_method_bytecode`. (#874)
+
+  * CI Enhancement
+
+    - Update smoke-test behavior counts, refresh Codex CLI flags in workflows, and add an AI issue solver workflow. (#888, #877, and #875)
+
+  * Document Enhancement
+
+    - Add an analysis report for the Hydra malware family. (#892)
+
+ --  Zin Wong <chriswangxxxxx@gmail.com>  Mon, 04 May 2026 11:23:03 +0800
+
 quark-engine (26.3.1-0kali1) kali-dev; urgency=medium
 
   * Performance Improvement
