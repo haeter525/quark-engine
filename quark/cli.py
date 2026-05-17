@@ -151,8 +151,18 @@ logo()
 )
 @click.option(
     "--auto-fix-checksum",
-    help="Automatically repair damaged DEX checksum/signature before analyzing (androguard only)." + 
+    help="Automatically repair damaged DEX checksum/signature before analyzing (androguard only)." +
     "When not provided, Quark will prompt in interactive TTY and skip in non-interactive runs.",
+    is_flag=True,
+    default=False,
+    show_default=True,
+)
+@click.option(
+    "--dynamic-resolve",
+    "dynamic_resolve",
+    help="Enable dynamic string resolution via DexTrace. Executes encrypted "
+         "string methods at analysis time to recover plaintext for Phase 5 "
+         "keyword matching. Requires: pip install quark-engine[dynamic].",
     is_flag=True,
     default=False,
     show_default=True,
@@ -175,6 +185,7 @@ def entry_point(
     core_library,
     num_of_process,
     auto_fix_checksum,
+    dynamic_resolve,
 ):
     """Quark is an Obfuscation-Neglect Android Malware Scoring System"""
     # Load rules
@@ -238,7 +249,7 @@ def entry_point(
             data = (
                 ParallelQuark(apk_, core_library, num_of_process, auto_fix_checksum)
                 if num_of_process > 1
-                else Quark(apk_, core_library, auto_fix_checksum)
+                else Quark(apk_, core_library, auto_fix_checksum, dynamic_resolve=dynamic_resolve)
             )
             all_labels = {}
             # dictionary containing
@@ -295,7 +306,7 @@ def entry_point(
     data = (
         ParallelQuark(apk[0], core_library, num_of_process, auto_fix_checksum)
         if num_of_process > 1
-        else Quark(apk[0], core_library, auto_fix_checksum)
+        else Quark(apk[0], core_library, auto_fix_checksum, dynamic_resolve=dynamic_resolve)
     )
 
     if label:

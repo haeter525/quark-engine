@@ -60,5 +60,6 @@ setuptools.setup(
     install_requires=required_requirements,
     extras_require={
         "QuarkAgent": quarkAgentRequirements,
+        "dynamic": ["dextrace"],
     },
 )
