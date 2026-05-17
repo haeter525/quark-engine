@@ -17,6 +17,7 @@ required_requirements = [
     "click",
     "r2pipe==1.8.0",
     "pathvalidate==3.2.3",
+    "dextrace",
 ]
 
 quarkAgentRequirements = [
@@ -60,6 +61,5 @@ setuptools.setup(
     install_requires=required_requirements,
     extras_require={
         "QuarkAgent": quarkAgentRequirements,
-        "dynamic": ["dextrace"],
     },
 )
