@@ -1,3 +1,11 @@
+quark-engine (26.6.1-0kali1) kali-dev; urgency=medium
+
+  * Rule Enhancement
+
+    - Add new Quark rules for the BRATA, TangleBot, and Godfather malware families. (#917, #916, and #915)
+
+ --  Shaun Dang <pulorsok@gmail.com>  Mon, 01 Jun 2026 12:57:14 +0800
+
 quark-engine (26.5.1-0kali1) kali-dev; urgency=medium
 
   * Rule Enhancement
