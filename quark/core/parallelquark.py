@@ -6,7 +6,8 @@ from multiprocessing.pool import Pool
 from multiprocessing import cpu_count
 
 from quark.core.analysis import QuarkAnalysis
-from quark.core.quark import Quark
+from quark.core.quark import Quark, _DEXTRACE_AVAILABLE
+from quark.utils.pprint import print_warning
 
 _quark = None
 
@@ -113,6 +114,13 @@ class ParallelQuark(Quark):
             )
 
     def __init__(self, apk, core_library, num_of_process=1, auto_fix_checksum=False, dynamic_resolve=False):
+        if dynamic_resolve and not _DEXTRACE_AVAILABLE:
+            print_warning(
+                "dynamic_resolve=True but the 'dextrace' package is not installed. "
+                "Dynamic string resolution will be skipped. "
+                "Install it with: pip install dextrace"
+            )
+            dynamic_resolve = False
         self._result_map = {}
         self._pool = Pool(
             min(num_of_process, cpu_count() - 1), self._worker_initializer,
