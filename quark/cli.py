@@ -247,7 +247,7 @@ def entry_point(
         malware_confidences = {}
         for apk_ in apk:
             data = (
-                ParallelQuark(apk_, core_library, num_of_process, auto_fix_checksum)
+                ParallelQuark(apk_, core_library, num_of_process, auto_fix_checksum, dynamic_resolve)
                 if num_of_process > 1
                 else Quark(apk_, core_library, auto_fix_checksum, dynamic_resolve=dynamic_resolve)
             )
@@ -304,7 +304,7 @@ def entry_point(
 
     # Load APK
     data = (
-        ParallelQuark(apk[0], core_library, num_of_process, auto_fix_checksum)
+        ParallelQuark(apk[0], core_library, num_of_process, auto_fix_checksum, dynamic_resolve)
         if num_of_process > 1
         else Quark(apk[0], core_library, auto_fix_checksum, dynamic_resolve=dynamic_resolve)
     )
