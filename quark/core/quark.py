@@ -159,6 +159,24 @@ def _resolveStringCalls(
             )
 
 
+def _match_keywords(values: set, keywords: Sequence, regex: bool) -> list:
+    if not regex:
+        return [v for v in values if any(kw in v for kw in keywords)]
+    matched: set = set()
+    for keyword in keywords:
+        pattern = re.compile(keyword)
+        for value in values:
+            found = pattern.findall(value)
+            if not any(found):
+                continue
+            if isinstance(found[0], tuple):
+                for t in found:
+                    matched.update(filter(bool, t))
+            else:
+                matched.update(filter(bool, found))
+    return [e for e in matched if e]
+
+
 MAX_SEARCH_LAYER = 3
 
 
@@ -522,20 +540,18 @@ class Quark:
             invoked in a higher frame (optional).
         :return: a list of matched keywords
         """
-        matchedStrSet = set()
         primitiveValues = {
             str(primitive.value)
             for primitive in iteratePriorPrimitives(methodCall)
         }
 
-        # Phase 5 dynamic fallback: run DexTrace when static primitives are
-        # absent or all empty strings (Primitive('') represents unknown
-        # parameter values in the value graph — not useful for keyword matching).
-        has_meaningful_primitives = any(pv for pv in primitiveValues if pv)
-        if not has_meaningful_primitives and self._dynamic_resolve and _DEXTRACE_AVAILABLE:
+        results = _match_keywords(primitiveValues, keywords, regex)
+
+        # Phase 5 dynamic fallback: only when static matching finds nothing
+        if not results and self._dynamic_resolve and _DEXTRACE_AVAILABLE:
             apk_path = self.apkinfo.apk_filepath
             log.debug(
-                "dynamic_resolve: no meaningful static primitives for %s, trying DexTrace",
+                "dynamic_resolve: no static keyword matches for %s, trying DexTrace",
                 getattr(methodCall, "method", methodCall),
             )
             for resolved in _resolveStringCalls(
@@ -545,30 +561,9 @@ class Quark:
                 parentMethod=parentMethod,
             ):
                 primitiveValues.add(resolved)
+            results = _match_keywords(primitiveValues, keywords, regex)
 
-        if not regex:
-            return [
-                value
-                for value in primitiveValues
-                if any(kw in value for kw in keywords)
-            ]
-
-        for keyword in keywords:
-            regexPattern = re.compile(keyword)
-
-            for value in primitiveValues:
-                matchedStrings = regexPattern.findall(value)
-                if not any(matchedStrings):
-                    continue
-
-                # Filter out empty strings from tuples in the result
-                if isinstance(matchedStrings[0], tuple):
-                    for matchTuple in matchedStrings:
-                        matchedStrSet.update(filter(bool, matchTuple))
-                else:
-                    matchedStrSet.update(filter(bool, matchedStrings))
-
-        return [e for e in list(matchedStrSet) if bool(e)]
+        return results
 
     def find_api_usage(self, class_name, method_name, descriptor_name):
         method_list = []

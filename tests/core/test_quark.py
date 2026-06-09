@@ -445,6 +445,78 @@ class TestQuark:
 
         assert result == ["content://call_log/calls"]
 
+    # --- dynamic_resolve tests (no network / no DexTrace needed) ---
+
+    def _make_method_call(self, primitive_value):
+        return MethodCall(
+            "Landroid/content/ContentResolver;->query"
+            "(Landroid/net/Uri;)Landroid/database/Cursor;",
+            (
+                MethodCall(
+                    "Landroid/net/Uri;->parse(Ljava/lang/String;)",
+                    (Primitive(primitive_value, "Ljava/lang/String;"),),
+                ),
+            ),
+        )
+
+    def test_dynamic_resolve_skipped_when_static_matches(self, simple_quark_obj):
+        simple_quark_obj._dynamic_resolve = True
+        method_call = self._make_method_call("content://sms")
+        with patch("quark.core.quark._DEXTRACE_AVAILABLE", True), \
+             patch("quark.core.quark._resolveStringCalls") as mock_dex:
+            result = simple_quark_obj.getMatchedKeywords(method_call, ("sms",), False)
+        mock_dex.assert_not_called()
+        assert result == ["content://sms"]
+
+    def test_dynamic_resolve_called_when_static_misses(self, simple_quark_obj):
+        simple_quark_obj._dynamic_resolve = True
+        method_call = self._make_method_call("irrelevant")
+        with patch("quark.core.quark._DEXTRACE_AVAILABLE", True), \
+             patch("quark.core.quark._resolveStringCalls", return_value=["content://sms"]) as mock_dex:
+            result = simple_quark_obj.getMatchedKeywords(method_call, ("sms",), False)
+        mock_dex.assert_called_once()
+        assert result == ["content://sms"]
+
+    def test_dynamic_resolve_called_when_no_static_primitives(self, simple_quark_obj):
+        simple_quark_obj._dynamic_resolve = True
+        method_call = MethodCall(
+            "Landroid/content/ContentResolver;->query"
+            "(Landroid/net/Uri;)Landroid/database/Cursor;",
+            (),
+        )
+        with patch("quark.core.quark._DEXTRACE_AVAILABLE", True), \
+             patch("quark.core.quark._resolveStringCalls", return_value=["content://sms"]) as mock_dex:
+            result = simple_quark_obj.getMatchedKeywords(method_call, ("sms",), False)
+        mock_dex.assert_called_once()
+        assert result == ["content://sms"]
+
+    def test_dynamic_resolve_disabled_never_calls_dextrace(self, simple_quark_obj):
+        simple_quark_obj._dynamic_resolve = False
+        method_call = self._make_method_call("irrelevant")
+        with patch("quark.core.quark._DEXTRACE_AVAILABLE", True), \
+             patch("quark.core.quark._resolveStringCalls") as mock_dex:
+            result = simple_quark_obj.getMatchedKeywords(method_call, ("sms",), False)
+        mock_dex.assert_not_called()
+        assert result == []
+
+    def test_dynamic_resolve_regex_skipped_when_static_matches(self, simple_quark_obj):
+        simple_quark_obj._dynamic_resolve = True
+        method_call = self._make_method_call("sms_body")
+        with patch("quark.core.quark._DEXTRACE_AVAILABLE", True), \
+             patch("quark.core.quark._resolveStringCalls") as mock_dex:
+            result = simple_quark_obj.getMatchedKeywords(method_call, ("sms.*",), True)
+        mock_dex.assert_not_called()
+        assert result == ["sms_body"]
+
+    def test_dynamic_resolve_regex_called_when_static_misses(self, simple_quark_obj):
+        simple_quark_obj._dynamic_resolve = True
+        method_call = self._make_method_call("irrelevant")
+        with patch("quark.core.quark._DEXTRACE_AVAILABLE", True), \
+             patch("quark.core.quark._resolveStringCalls", return_value=["sms_body"]) as mock_dex:
+            result = simple_quark_obj.getMatchedKeywords(method_call, ("sms.*",), True)
+        mock_dex.assert_called_once()
+        assert result == ["sms_body"]
+
     def test_get_json_report(self, quark_obj):
         json_report = quark_obj.get_json_report()
         # Check if proper dict object
