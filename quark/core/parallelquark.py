@@ -6,16 +6,17 @@ from multiprocessing.pool import Pool
 from multiprocessing import cpu_count
 
 from quark.core.analysis import QuarkAnalysis
-from quark.core.quark import Quark
+from quark.core.quark import Quark, _DEXTRACE_AVAILABLE
+from quark.utils.pprint import print_warning
 
 _quark = None
 
 
 class ParallelQuark(Quark):
     @staticmethod
-    def _worker_initializer(apk, core_library, auto_fix_checksum):
+    def _worker_initializer(apk, core_library, auto_fix_checksum, dynamic_resolve):
         global _quark
-        _quark = Quark(apk, core_library, auto_fix_checksum)
+        _quark = Quark(apk, core_library, auto_fix_checksum, dynamic_resolve=dynamic_resolve)
 
     @staticmethod
     def _worker_analysis(rule_obj):
@@ -112,14 +113,21 @@ class ParallelQuark(Quark):
                 ]
             )
 
-    def __init__(self, apk, core_library, num_of_process=1, auto_fix_checksum=False):
+    def __init__(self, apk, core_library, num_of_process=1, auto_fix_checksum=False, dynamic_resolve=False):
+        if dynamic_resolve and not _DEXTRACE_AVAILABLE:
+            print_warning(
+                "dynamic_resolve=True but the 'dextrace' package is not installed. "
+                "Dynamic string resolution will be skipped. "
+                "Install it with: pip install dextrace"
+            )
+            dynamic_resolve = False
         self._result_map = {}
         self._pool = Pool(
             min(num_of_process, cpu_count() - 1), self._worker_initializer,
-            (apk, core_library, auto_fix_checksum)
+            (apk, core_library, auto_fix_checksum, dynamic_resolve)
         )
 
-        super().__init__(apk, core_library)
+        super().__init__(apk, core_library, auto_fix_checksum, dynamic_resolve=dynamic_resolve)
 
     def apply_rules(self, rule_obj_list):
         for rule_obj in rule_obj_list:

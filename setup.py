@@ -17,6 +17,7 @@ required_requirements = [
     "click",
     "r2pipe==1.8.0",
     "pathvalidate==3.2.3",
+    "dextrace",
 ]
 
 quarkAgentRequirements = [
