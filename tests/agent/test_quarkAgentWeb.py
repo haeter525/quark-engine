@@ -40,3 +40,29 @@ def testGetResponseReturnsAgentReply(quarkAgentWebModule):
     assert HumanMessage(content="hi") in module.conversation_history
     assert AIMessage(content="Hello from agent") in module.conversation_history
     assert module.conversation_history[-1] == "Hello from agent"
+
+
+def testGetResponseParsesCodeBlocks(quarkAgentWebModule):
+    module, mockAgentExecutor = quarkAgentWebModule
+    reply = (
+        "Here is data:\n"
+        '```{"key": "value"}```\n'
+        "and a snippet:\n"
+        "```not json at all```"
+    )
+    mockAgentExecutor.invoke.return_value = {
+        "messages": [AIMessage(content=reply)]
+    }
+
+    client = module.app.test_client()
+    response = client.get("/get_response", query_string={"message": "hi"})
+    data = response.get_json()
+
+    assert response.status_code == 200
+    # The valid JSON block is parsed; the non-JSON block hits the
+    # JSONDecodeError branch and is skipped.
+    assert data["json_blocks"] == [{"key": "value"}]
+    assert len(data["code_blocks"]) == 2
+    # Fenced code is stripped out of the plain-text reply.
+    assert "data:" in data["plain_text"]
+    assert "```" not in data["plain_text"]
