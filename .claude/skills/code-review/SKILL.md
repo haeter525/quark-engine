@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Code quality checklist and review automation scripts for quark-engine PRs
+version: 1.0.0
 allowed-tools: Bash, Grep, Read
 ---
 

@@ -1,3 +1,42 @@
+quark-engine (26.6.1-0kali1) kali-dev; urgency=medium
+
+  * Rule Enhancement
+
+    - Add new Quark rules for the BRATA, TangleBot, and Godfather malware families. (#917, #916, and #915)
+
+ --  Shaun Dang <pulorsok@gmail.com>  Mon, 01 Jun 2026 12:57:14 +0800
+
+quark-engine (26.5.1-0kali1) kali-dev; urgency=medium
+
+  * Rule Enhancement
+
+    - Add new Quark rules for the Antidot, Arsink, and TrickMo malware families. (#903, #907, and #909)
+
+  * Bug Fixes
+
+    - Separate `filled-new-array` parsing from invoke-kind handling to avoid incorrect bytecode classification. (#867 and #886)
+
+ --  Shaun Dang <pulorsok@gmail.com>  Mon, 04 May 2026 11:51:26 +0800
+
+quark-engine (26.4.1-0kali1) kali-dev; urgency=medium
+
+  * Document Enhancements
+
+    - Add analysis report for Hydra malware family. (#892)
+    - Add analysis report for SharkBot malware family. (#900)
+
+  * Bug Fixes
+
+    - Fix issues where `type-casting` and `invoke-polymorphic` instructions were skipped during analysis. Thanks to @dolamroth. (#872 and #874)
+    - Fix incorrect type hints in helper functions. Thanks to @dolamroth. (#885)
+    - Fix incomplete tracking of registers holding array objects. (#890)
+
+  * Dependency Update
+
+    - Bump **Flask** from 2.2.5 to 3.1.3. (#865)
+
+ --  Shaun Dang <pulorsok@gmail.com>  Mon, 30 Mar 2026 11:22:53 +0800
+
 quark-engine (26.3.1-0kali1) kali-dev; urgency=medium
 
   * Performance Improvement

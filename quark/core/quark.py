@@ -2,11 +2,16 @@
 # This file is part of Quark-Engine - https://github.com/quark-engine/quark-engine
 # See the file 'LICENSE' for copying permission.
 
+import concurrent.futures
+import functools
+import logging
+import time
 from itertools import product
 import operator
 import os
 import re
-from typing import Any, Generator, List, Mapping, Sequence, Tuple
+from pathlib import Path
+from typing import Any, Generator, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import csv
@@ -39,6 +44,138 @@ from quark.utils.output import (
 )
 from quark.utils.pprint import print_info, print_success, print_warning
 from quark.utils.weight import Weight
+from quark import config
+from quark.utils.logger import defaultHandler
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+log.addHandler(defaultHandler)
+log.disabled = not config.DEBUG
+
+try:
+    from dextrace.api import execute_method as _dextrace_execute  # type: ignore
+    _DEXTRACE_AVAILABLE = True
+except ImportError:
+    _DEXTRACE_AVAILABLE = False
+
+
+@functools.lru_cache(maxsize=512)
+def _dextrace_cached(apk_path: str, sig: str) -> Optional[str]:
+    log.debug("dynamic_resolve: executing %s (cache miss)", sig)
+    result = _dextrace_execute(apk_path, sig, args=[])
+    return str(result) if result is not None else None
+
+
+def _resolveStringCalls(
+    methodCall: MethodCall,
+    apk_path: str,
+    apkinfo=None,
+    parentMethod=None,
+    *,
+    total_timeout_s: float = 10.0,
+) -> Generator[str, None, None]:
+    norm_path = str(Path(apk_path).resolve())
+    deadline = time.monotonic() + total_timeout_s
+    found_any = False
+
+    # Phase 1: prior calls of methodCall (covers cases where the encryption
+    # function is called inside the same frame as the target API call).
+    for priorCall in iteratePriorCalls(methodCall):
+        if time.monotonic() >= deadline:
+            log.debug(
+                "dynamic_resolve: total timeout (%.1fs) reached, remaining candidates skipped",
+                total_timeout_s,
+            )
+            return
+        sig: str = priorCall.method
+        if not sig.endswith(")Ljava/lang/String;"):
+            continue
+        resolved = _dextrace_cached(norm_path, sig)
+        if resolved is not None:
+            log.debug("dynamic_resolve: %s -> %r", sig, resolved)
+            found_any = True
+            yield resolved
+        else:
+            log.debug("dynamic_resolve: %s -> None", sig)
+
+    if found_any or apkinfo is None or parentMethod is None:
+        return
+
+    # Phase 2: the encryption function is called in a CALLER of parentMethod
+    # (the parent method receives the plaintext as a parameter). Scan all
+    # callers of parentMethod and execute any String-returning MethodCalls
+    # that appear in their value graphs.
+    log.debug(
+        "dynamic_resolve: Phase 1 empty — scanning callers of %s", parentMethod
+    )
+    seen_sigs: set = set()
+    try:
+        callers = apkinfo.upperfunc(parentMethod) or set()
+    except Exception:
+        return
+
+    for caller in callers:
+        if time.monotonic() >= deadline:
+            log.debug(
+                "dynamic_resolve: total timeout (%.1fs) reached during caller scan",
+                total_timeout_s,
+            )
+            return
+        try:
+            caller_pyeval = PyEval(apkinfo)
+            for bytecode_obj in apkinfo.get_method_bytecode(caller):
+                instruction = [bytecode_obj.mnemonic]
+                if bytecode_obj.registers is not None:
+                    instruction.extend(bytecode_obj.registers)
+                if bytecode_obj.parameter is not None:
+                    instruction.append(bytecode_obj.parameter)
+                instruction = [str(x) for x in instruction]
+                if instruction[0] in caller_pyeval.eval:
+                    caller_pyeval.eval[instruction[0]](instruction)
+
+            table = caller_pyeval.show_table()
+            for register_list in table.values():
+                for reg_obj in register_list:
+                    for call_node in reg_obj.iterateInvolvedCalls():
+                        sig = call_node.method
+                        if sig in seen_sigs or not sig.endswith(
+                            ")Ljava/lang/String;"
+                        ):
+                            continue
+                        seen_sigs.add(sig)
+                        if time.monotonic() >= deadline:
+                            return
+                        resolved = _dextrace_cached(norm_path, sig)
+                        if resolved is not None:
+                            log.debug(
+                                "dynamic_resolve (caller scan): %s -> %r",
+                                sig,
+                                resolved,
+                            )
+                            yield resolved
+        except Exception as exc:
+            log.debug(
+                "dynamic_resolve: error scanning caller %s: %s", caller, exc
+            )
+
+
+def _match_keywords(values: set, keywords: Sequence, regex: bool) -> list:
+    if not regex:
+        return [v for v in values if any(kw in v for kw in keywords)]
+    matched: set = set()
+    for keyword in keywords:
+        pattern = re.compile(keyword)
+        for value in values:
+            found = pattern.findall(value)
+            if not any(found):
+                continue
+            if isinstance(found[0], tuple):
+                for t in found:
+                    matched.update(filter(bool, t))
+            else:
+                matched.update(filter(bool, found))
+    return [e for e in matched if e]
+
 
 MAX_SEARCH_LAYER = 3
 
@@ -46,12 +183,22 @@ MAX_SEARCH_LAYER = 3
 class Quark:
     """Quark module is used to check quark's five-stage theory"""
 
-    def __init__(self, apk, core_library="androguard", auto_fix_checksum=False):
+    def __init__(self, apk, core_library="androguard", auto_fix_checksum=False, dynamic_resolve=False):
         """
 
         :param apk: the filename of the apk.
+        :param dynamic_resolve: if True, Phase 5 keyword matching will attempt to
+            resolve encrypted strings by executing method calls with DexTrace.
+            Requires the ``dextrace`` package to be installed. Opt-in; default False.
         """
         self.auto_fix_checksum = auto_fix_checksum
+        self._dynamic_resolve = dynamic_resolve
+        if dynamic_resolve and not _DEXTRACE_AVAILABLE:
+            print_warning(
+                "dynamic_resolve=True but the 'dextrace' package is not installed. "
+                "Dynamic string resolution will be skipped. "
+                "Install it with: pip install dextrace"
+            )
 
         core_library = core_library.lower()
         if core_library == "shuriken":
@@ -238,6 +385,7 @@ class Quark:
         firstMethodKeywords: Sequence | None = None,
         secondMethodKeywords: Sequence | None = None,
         regex: bool = False,
+        parentMethod=None,
     ) -> Generator[Tuple[Tuple[MethodCall, MethodCall], List[str]], None, None]:
         """Check the usage of the same parameter between two methods.
 
@@ -249,6 +397,8 @@ class Quark:
         :param secondMethodKeywords: keywords to match for the second method,
         defaults to None
         :param regex: treat keywords as regular expressions, defaults to False
+        :param parentMethod: the method containing firstMethod/secondMethod calls;
+        forwarded to getMatchedKeywords for dynamic caller-frame resolution.
         :yield: a tuple of matched method call pairs and matched keywords
         """
         # Find the first and second method call that share same register
@@ -278,14 +428,16 @@ class Quark:
             if firstMethodKeywords is not None:
                 # Check if arguments of the first call match any keywords.
                 first_matched = self.getMatchedKeywords(
-                    firstCall, firstMethodKeywords, regex=regex
+                    firstCall, firstMethodKeywords, regex=regex,
+                    parentMethod=parentMethod,
                 )
                 matchedKeywords.extend(first_matched)
 
             if secondMethodKeywords is not None:
                 # Check if arguments of the second call match any keywords.
                 second_matched = self.getMatchedKeywords(
-                    secondCall, secondMethodKeywords, regex=regex
+                    secondCall, secondMethodKeywords, regex=regex,
+                    parentMethod=parentMethod,
                 )
                 matchedKeywords.extend(second_matched)
 
@@ -338,6 +490,7 @@ class Quark:
                 first_method_keywords,
                 second_method_keywords,
                 regex,
+                parentMethod=parent_method,
             )
 
             found = next(results, None) is not None
@@ -373,46 +526,44 @@ class Quark:
 
         return state
 
-    @staticmethod
     def getMatchedKeywords(
-        methodCall: MethodCall, keywords: Sequence, regex: bool
+        self, methodCall: MethodCall, keywords: Sequence, regex: bool,
+        parentMethod=None,
     ) -> List[str]:
         """Get matched keywords from the parameters of a method call.
 
-        :param method_call: the method call to be checked
+        :param methodCall: the method call to be checked
         :param keywords: keywords to be matched
         :param regex: whether to treat keywords as regular expressions
-        :yield: a list of matched keywords
+        :param parentMethod: the method that contains methodCall; used by the
+            dynamic resolver to scan callers when the encryption function is
+            invoked in a higher frame (optional).
+        :return: a list of matched keywords
         """
-        matchedStrSet = set()
         primitiveValues = {
             str(primitive.value)
             for primitive in iteratePriorPrimitives(methodCall)
         }
 
-        if not regex:
-            return [
-                value
-                for value in primitiveValues
-                if any(kw in value for kw in keywords)
-            ]
+        results = _match_keywords(primitiveValues, keywords, regex)
 
-        for keyword in keywords:
-            regexPattern = re.compile(keyword)
+        # Phase 5 dynamic fallback: only when static matching finds nothing
+        if not results and self._dynamic_resolve and _DEXTRACE_AVAILABLE:
+            apk_path = self.apkinfo.apk_filepath
+            log.debug(
+                "dynamic_resolve: no static keyword matches for %s, trying DexTrace",
+                getattr(methodCall, "method", methodCall),
+            )
+            for resolved in _resolveStringCalls(
+                methodCall,
+                apk_path,
+                apkinfo=self.apkinfo,
+                parentMethod=parentMethod,
+            ):
+                primitiveValues.add(resolved)
+            results = _match_keywords(primitiveValues, keywords, regex)
 
-            for value in primitiveValues:
-                matchedStrings = regexPattern.findall(value)
-                if not any(matchedStrings):
-                    continue
-
-                # Filter out empty strings from tuples in the result
-                if isinstance(matchedStrings[0], tuple):
-                    for matchTuple in matchedStrings:
-                        matchedStrSet.update(filter(bool, matchTuple))
-                else:
-                    matchedStrSet.update(filter(bool, matchedStrings))
-
-        return [e for e in list(matchedStrSet) if bool(e)]
+        return results
 
     def find_api_usage(self, class_name, method_name, descriptor_name):
         method_list = []

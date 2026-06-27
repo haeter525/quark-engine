@@ -102,6 +102,21 @@ LangChain-based AI agent (`quark-agent` CLI). Requires the `QuarkAgent` extras (
 
 ## Commit Conventions
 
+The project uses **conventional commits** (lowercase prefix):
+
+- `fix: <description>` — bug fixes
+- `feat: <description>` — new features or capabilities
+- `docs: <description>` — documentation-only changes
+- `test: <description>` — test additions or fixes
+- `chore: <description>` — maintenance (deps, version bumps, CI)
+- `refactor: <description>` — code changes that neither fix a bug nor add a feature
+
+Issue references go at the start when closing an issue: `fix #871: fix instruction names for PyEval.CAST_TYPE`.
+
+PR references go at the end in parentheses: `fix: restore Ahmyth expected count (#123)`.
+
+### Commit Message Quality
+
 Write commit messages as simple English sentences:
 
 - **Simple sentence structure**: use one of the five basic English sentence patterns

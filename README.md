@@ -35,6 +35,7 @@
 ## Malware Family Analysis Report Showcase
 
 <table>
+
   <tr>
     <td><img src="https://github.com/user-attachments/assets/e8f150e8-a27f-4d0f-b3f0-346714a4cdc4" width="310"></td>
     <td><img src="https://github.com/user-attachments/assets/1a209c41-7f14-4a71-957a-637148e8a5ec" width="310"></td>
@@ -44,6 +45,29 @@
     <td><img src="https://github.com/user-attachments/assets/ea66a178-0eb1-4832-9b3f-745b973639aa" width="310"></td>
     <td><img src="https://github.com/user-attachments/assets/342a4e3f-33bd-4ff4-92ed-7869356ee1c7" width="310"></td>
     <td><img src="https://github.com/user-attachments/assets/a95e99b1-b7aa-4672-89be-cd2f6bc9e3cd" width="310"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/311fbc66-0e41-47f0-a3e7-7601e074050f" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/0b79b59f-7f76-40e1-8891-78714c06cffb" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/3b906cc0-d956-4ab2-851d-5da2767926e8" width="310"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/1523eeb8-cfca-4c5a-b63d-38887312b673" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/60b5afac-3244-480e-9aad-0337183bc6a0" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/ea8d1e15-234b-4197-8d3e-1984fcacb6c7" width="310"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/b3437fa0-e1a7-465c-8de7-92b25ba99eda" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/fb4c16ba-a266-4453-b335-ad470a23e2e5" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/dd7cae0f-c27d-41cb-8e56-813aa2ff5997" width="310"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/e1c2b16a-819e-4399-8b9e-79899ee2d1b8" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/03b5a2e2-7dda-4fb7-8462-d2a83bf38bbb" width="310"></td>
+    <td><img src="https://github.com/user-attachments/assets/aa51bd06-de3e-4bcc-95cd-22ecc8b27c01" width="310"></td>
+  </tr>
+  <tr>
+      <td><img src="https://github.com/user-attachments/assets/986d23eb-48de-459f-9714-f4685fd3e696" width="310"></td>
   </tr>
 </table>
 
@@ -56,8 +80,19 @@
 | DawDropper  | Dropper that installs banking trojans for financial theft. | 1. Download APKs from remote servers.<br>2. Install additional APKs. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-dawdropper) |
 | SLocker     | Android ransomware locking/encrypting devices.     | 1. Lock the device with an overlay screen. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-slocker) |
 | PhantomCard | NFC relay–based financial fraud.                   | 1. Communicate with C2 servers.<br>2. Read the payment data of NFC cards.<br>3. Captures PINs of NFC cards through deceptive screens.  | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-phantomcard) |
-
-
+| ToxicPanda  | Banking trojan enabling on-device fraud.     | 1. Abuse Accessibility.<br>2. Remote device control.<br>3. Intercept OTP. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-toxicpanda) |
+| Hydra       | Banking trojan using overlay attacks.        | 1. Overlay credential theft.<br>2. Accessibility abuse.<br>3. Steal OTP/cookies. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-hydra) |
+| SharkBot    | Banking trojan targeting financial credentials and transactions. | 1. Abuse Accessibility services.<br>2. Perform overlay attacks to steal credentials.<br>3. Intercept SMS messages (OTP). | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-sharkbot) |
+| Antidot     | Banking trojan disguised as legitimate updates for financial data theft. | 1. Intercept SMS messages (OTP).<br>2. Log user input (keylogging).<br>3. Enable remote control via C2. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-antidot) |
+| Arsink      | Banking trojan focusing on credential and financial data exfiltration. | 1. Steal sensitive data from device.<br>2. Intercept SMS messages (OTP). | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-arsink) |
+| TrickMo     | Banking trojan using overlay attacks and accessibility abuse for credential theft. | 1. Overlay attacks to steal banking credentials.<br>2. Intercept SMS for 2FA bypass.<br>3. Screen recording and accessibility abuse.<br>4. Dynamic payload loading via reflection. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-trickmo) |
+| Anubis      | Banking trojan with RAT capabilities.              | 1. Overlay credential theft.<br>2. Keylogging.<br>3. Intercept SMS (OTP).<br>4. Remote control via C2. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-anubis) |
+| GodFather  | Banking trojan targeting financial credentials through overlay and accessibility abuse. | 1. Perform overlay attacks to steal credentials.<br>2. Abuse Accessibility services.<br>3. Intercept SMS messages (OTP).<br>4. Steal banking credentials and sensitive data. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-godfather) |
+| TangleBot   | SMS-based Android malware stealing personal and financial data. | 1. Spread through SMS phishing links.<br>2. Control device interactions and overlay screens.<br>3. Access SMS, contacts, call logs, camera, and microphone.<br>4. Steal account and financial information. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-tanglebot) |
+| BRATA       | Banking trojan with remote control and anti-analysis capabilities. | 1. Perform overlay attacks to steal banking credentials.<br>2. Abuse Accessibility services for device control.<br>3. Intercept SMS messages (OTP).<br>4. Execute factory reset or device wipe commands. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-brata) |
+| Cerberus    | Banking trojan targeting financial credentials through overlay and device control. | 1. Perform overlay attacks to steal credentials.<br>2. Abuse Accessibility services.<br>3. Log user input (keylogging).<br>4. Enable remote control via C2. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-cerberus) |
+| SuperCardX  | NFC relay malware enabling contactless payment fraud. | 1. Read NFC payment card data.<br>2. Relay NFC transactions to attacker-controlled devices.<br>3. Communicate with C2 servers.<br>4. Facilitate unauthorized contactless payments. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-supercardx) |
+| NGate       | NFC-based malware enabling relay attacks and payment fraud. | 1. Read NFC payment card data.<br>2. Relay NFC communications to attacker-controlled devices.<br>3. Communicate with C2 servers.<br>4. Facilitate unauthorized contactless payments. | [View](https://quark-engine.readthedocs.io/en/latest/quark_rules.html#new-quark-rules-for-ngate) |
 
 ## Quick Start
 
