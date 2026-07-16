@@ -19,11 +19,15 @@ from androguard.core.analysis.analysis import MethodAnalysis
 from androguard.core.dex.dex_types import Operand
 from androguard.misc import AnalyzeAPK, get_default_session
 from androguard.core.dex import Instruction45cc, Instruction4rcc, get_kind, Kind
+from loguru import logger as _androguard_logger
 
 from quark.core.interface.baseapkinfo import BaseApkinfo
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
 from quark.evaluator.pyeval import PyEval
+
+
+_androguard_logger.disable("androguard")
 
 
 class AndroguardImp(BaseApkinfo):
