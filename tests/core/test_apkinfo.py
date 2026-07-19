@@ -1,4 +1,5 @@
 import os
+from types import SimpleNamespace
 from typing import Literal, Tuple
 import zipfile
 
@@ -11,6 +12,13 @@ from quark.core.r2apkinfo import R2Imp
 from quark.core.shurikenapkinfo import ShurikenImp
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
+
+try:
+    import shuriken  # noqa: F401
+
+    _HAS_SHURIKEN = True
+except ModuleNotFoundError:
+    _HAS_SHURIKEN = False
 
 
 @pytest.fixture(scope="session")
@@ -70,6 +78,9 @@ def __generateTestIDs(testInput: Tuple[BaseApkinfo, Literal["DEX", "APK"]]):
 def apkinfo(request, SAMPLE_PATH_13667, dex_file):
     apkinfoClass, fileType = request.param
 
+    if apkinfoClass is ShurikenImp and not _HAS_SHURIKEN:
+        pytest.skip("Shuriken-Analyzer is not installed")
+
     fileToBeAnalyzed = SAMPLE_PATH_13667
     if fileType == "DEX":
         fileToBeAnalyzed = dex_file
@@ -115,6 +126,9 @@ def apkinfo_with_R2Imp_only(request, SAMPLE_PATH_13667, dex_file):
 )
 def apkinfoPivaa(request, SAMPLE_PATH_pivaa, dex_file_pivaa):
     apkinfoClass, fileType = request.param
+
+    if apkinfoClass is ShurikenImp and not _HAS_SHURIKEN:
+        pytest.skip("Shuriken-Analyzer is not installed")
 
     fileToBeAnalyzed = SAMPLE_PATH_pivaa
     if fileType == "DEX":
@@ -675,6 +689,24 @@ class TestApkinfo:
         upper_set = apkinfo.superclass_relationships[class_name]
 
         assert expected_upper_class == upper_set
+
+    def test_superclass_relationships_include_implemented_interfaces(self):
+        apkinfo = AndroguardImp.__new__(AndroguardImp)
+        apkinfo.analysis = SimpleNamespace(
+            get_classes=lambda: [
+                SimpleNamespace(
+                    name="Lexample/Child;",
+                    extends="Lexample/Parent;",
+                    implements=["Lexample/FirstInterface;", "Lexample/SecondInterface;"],
+                )
+            ]
+        )
+
+        assert apkinfo.superclass_relationships["Lexample/Child;"] == {
+            "Lexample/Parent;",
+            "Lexample/FirstInterface;",
+            "Lexample/SecondInterface;",
+        }
 
     @staticmethod
     @pytest.mark.parametrize(
