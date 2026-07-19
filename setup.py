@@ -8,6 +8,7 @@ with open("README.md") as fh:
 required_requirements = [
     "prettytable>=1.0.0",
     "androguard==4.1.4",
+    "numpy",
     "tqdm",
     "colorama",
     "graphviz",
