@@ -71,6 +71,9 @@
       <td><img src="https://github.com/user-attachments/assets/d175889c-1442-428d-911a-628b5cdbb7d4" width="310"></td>
       <td><img src="https://github.com/user-attachments/assets/514f2dd2-d456-42b9-8d15-18e6988e3aa5" width="310"></td>
   </tr>
+  <tr>
+      <td><img src="https://github.com/user-attachments/assets/9eaf2751-1579-4fba-9d71-d201b723dc4d" width="310"></td>
+  </tr>
 </table>
 
 
@@ -97,6 +100,7 @@
 | NGate       | NFC-based malware enabling relay attacks and payment fraud. | 1. Read NFC payment card data.<br>2. Relay NFC communications to attacker-controlled devices.<br>3. Communicate with C2 servers.<br>4. Facilitate unauthorized contactless payments. | [View](https://quark-engine.readthedocs.io/en/latest/malware_report.html#ngate-malware-family-analysis-report) |
 | AhRat       | Android RAT capable of surveillance and data theft. | 1. Record audio from the device.<br>2. Steal files and sensitive data.<br>3. Remote access via C2.<br>4. Execute remote commands. | [View](https://quark-engine.readthedocs.io/en/latest/malware_report.html#ahrat-malware-family-analysis-report) |
 | AndroRat    | Android remote access trojan for device surveillance. | 1. Record audio and capture video.<br>2. Track device location.<br>3. Steal files and device information.<br>4. Execute remote commands. | [View](https://quark-engine.readthedocs.io/en/latest/malware_report.html#androrat-malware-family-analysis-report) |
+| Sova        | Android banking trojan distributed as trojanised carrier apps for credential theft and SMS fraud. | 1. Read device identifiers via the C2 ping-response handler.<br>2. Inject outbound SMS on operator command.<br>3. Place phone calls without user consent. | [View](https://quark-engine.readthedocs.io/en/latest/malware_report.html#sova-malware-family-analysis-report) |
 
 ## Quick Start
 
