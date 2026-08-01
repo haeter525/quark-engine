@@ -6,8 +6,10 @@
 from __future__ import annotations
 
 import functools
+import os
 import re
 from collections import defaultdict
+from contextlib import suppress
 from dataclasses import dataclass
 from os import PathLike
 from typing import DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple
@@ -58,14 +60,28 @@ class DexTraceImp(BaseApkinfo):
         enable_disasm: bool = True,
         debug: bool = False,
     ):
+        import tempfile
+
         super().__init__(apk_filepath, "dextrace", tmp_dir)
 
-        self._target_path = str(apk_filepath)
+        self._patched_tmp: Optional[str] = None
+
+        # BaseApkinfo.patch() rewrote self.data (mmap copy) in-place.
+        # DexTrace API only accepts file paths, so write the patched bytes to a
+        # temp file and point all DexTrace calls there.
+        if self.isPatched and self.ret_type == "APK":
+            fd, self._patched_tmp = tempfile.mkstemp(suffix=".apk")
+            try:
+                os.write(fd, self.data[:])
+            finally:
+                os.close(fd)  # close fd; file remains on disk until __del__
+
+        self._target_path = self._patched_tmp if self._patched_tmp else str(apk_filepath)
         self._options = api_options or DextraceApiOptions()
         self._enable_disasm = bool(enable_disasm)
         self._debug = bool(debug)
 
-        # Permissions (APK mode only) via DexTrace api
+        # Permissions (APK mode only) via DexTrace api.
         self._permissions: List[str] = []
         if self.ret_type == "APK":
             try:
@@ -87,6 +103,11 @@ class DexTraceImp(BaseApkinfo):
         dex_report = extract_api_calls(self._target_path, options=self._options)
         api_calls = self._extract_api_calls(dex_report)
         self._build_graph(api_calls)
+
+    def __del__(self):
+        if self._patched_tmp:
+            with suppress(Exception):
+                os.unlink(self._patched_tmp)
 
     # ---------- Basic metadata ----------
     @property
@@ -179,9 +200,8 @@ class DexTraceImp(BaseApkinfo):
     @functools.cached_property
     def superclass_relationships(self) -> Dict[str, Set[str]]:
         result: DefaultDict[str, Set[str]] = defaultdict(set)
-        for cls, superclass in extract_class_hierarchy(self.apk_filepath).items():
-            if superclass is not None:
-                result[cls].add(superclass)
+        for cls, parents in extract_class_hierarchy(self.apk_filepath).items():
+            result[cls].update(parents)
         return result
 
     @functools.cached_property

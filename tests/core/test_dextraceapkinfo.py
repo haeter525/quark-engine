@@ -105,3 +105,55 @@ class TestFindMethodClassNormalization:
         assert set(canonical) == set(slash_only)
 
 
+# ---------------------------------------------------------------------------
+# Bogus ZIP compression anti-analysis fix (3d52b APK)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def dextrace_3d52b(SAMPLE_PATH_3d52b):
+    """DexTraceImp backed by the APK that uses a bogus compression type (8744)
+    on AndroidManifest.xml as an anti-analysis trick."""
+    return DexTraceImp(SAMPLE_PATH_3d52b)
+
+
+@pytest.mark.skipif(not _HAS_DEXTRACE, reason="DexTrace not installed")
+class TestBogusCompressionFix:
+    """Regression tests for the bogus ZIP compression / permissions fix.
+
+    The 3d52b APK sets AndroidManifest.xml's compression type to 8744 while
+    storing data uncompressed.  Before the fix this caused 0% confidence on
+    all Quark rules because permissions came back empty (Level 1 failure).
+    """
+
+    def test_apk_is_detected_as_patched(self, dextrace_3d52b):
+        """ApkPatcher must recognise the bogus compression and set isPatched."""
+        assert dextrace_3d52b.isPatched is True
+
+    def test_permissions_non_empty(self, dextrace_3d52b):
+        """After the fix, permissions must be non-empty (Level 1 passes)."""
+        perms = dextrace_3d52b.permissions
+        assert len(perms) > 0, (
+            "permissions is empty — Level 1 will fail for all rules "
+            "(regression of bogus-compression fix)"
+        )
+
+    def test_permissions_include_expected(self, dextrace_3d52b):
+        """INTERNET permission must be present (known from manual inspection)."""
+        assert "android.permission.INTERNET" in dextrace_3d52b.permissions
+
+    def test_no_temp_file_leak_after_gc(self, SAMPLE_PATH_3d52b):
+        """DexTraceImp must not leave temp APK files on disk after the instance is GC'd."""
+        import glob
+        import tempfile
+        tmp_dir = tempfile.gettempdir()
+        apk_before = set(glob.glob(os.path.join(tmp_dir, "*.apk")))
+        instance = DexTraceImp(SAMPLE_PATH_3d52b)
+        del instance
+        apk_after = set(glob.glob(os.path.join(tmp_dir, "*.apk")))
+        assert not (apk_after - apk_before), (
+            "DexTraceImp leaked temp APK files after __del__: "
+            f"{apk_after - apk_before}"
+        )
+
+
