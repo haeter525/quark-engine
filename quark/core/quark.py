@@ -607,8 +607,7 @@ class Quark:
 
                 current_class_set = next_class_set
 
-            current_class_set.discard("Ljava/lang/Object;")
-            if current_class_set:
+            if class_name in current_class_set:
                 method_list.append(method)
 
         return method_list

@@ -24,9 +24,9 @@ from quark.utils.tools import descriptor_to_androguard_format
 from dextrace.api import (  # type: ignore
     DextraceApiOptions,
     disasm_method,
+    extract_abstract_methods,
     extract_api_calls,
     extract_class_hierarchy,
-    iter_apk_dex_files,
     parse_manifest,
 )
 
@@ -99,11 +99,15 @@ class DexTraceImp(BaseApkinfo):
         # Helper: signature-indexed ordered callees (for evidence)
         self._calls_by_caller_sig: DefaultDict[str, List[Tuple[str, int]]] = defaultdict(list)
 
-        # Build call graph from DexTrace api
+        # Build call graph from DexTrace api.
+        # extract_api_calls() triggers _all_dex_data_cached(), which performs a
+        # single class_def_item scan and caches api_calls, abstract_methods, and
+        # parent_map together.  The extract_abstract_methods() call below is a
+        # cache hit — no ZIP re-open, no second DEX pass.
         dex_report = extract_api_calls(self._target_path, options=self._options)
         api_calls = self._extract_api_calls(dex_report)
         self._build_graph(api_calls)
-        self._register_abstract_methods()
+        self._register_abstract_methods_from_cache()
 
         # Class-keyed index so find_method() avoids O(|all_methods|) scans
         self._methods_by_class: DefaultDict[str, List[MethodObject]] = defaultdict(list)
@@ -200,8 +204,11 @@ class DexTraceImp(BaseApkinfo):
 
     @functools.cached_property
     def superclass_relationships(self) -> Dict[str, Set[str]]:
+        # extract_class_hierarchy() reads from the _all_dex_data_cached() result
+        # that was already populated by extract_api_calls() in __init__ — no ZIP
+        # re-open and no second class_def_item scan.
         result: DefaultDict[str, Set[str]] = defaultdict(set)
-        for cls, parents in extract_class_hierarchy(self.apk_filepath).items():
+        for cls, parents in extract_class_hierarchy(self._target_path).items():
             result[cls].update(parents)
         return result
 
@@ -285,16 +292,15 @@ class DexTraceImp(BaseApkinfo):
 
         ins_json = self._get_method_instructions_json(parent_method)
         if ins_json:
-            _ws_re_local = self._WHITESPACE_RE
-            n1 = _ws_re_local.sub("", first_callee_sig or "")
-            n2 = _ws_re_local.sub("", second_callee_sig or "")
+            n1 = self._WHITESPACE_RE.sub("", first_callee_sig or "")
+            n2 = self._WHITESPACE_RE.sub("", second_callee_sig or "")
             i1 = None
             i2 = None
             for j, it in enumerate(ins_json):
                 s = _it_smali(it)
                 if not s or s.startswith(":"):
                     continue
-                ns = _ws_re_local.sub("", s)
+                ns = self._WHITESPACE_RE.sub("", s)
                 if i1 is None and n1 and n1 in ns:
                     i1 = j
                 if i2 is None and n2 and n2 in ns:
@@ -400,8 +406,6 @@ class DexTraceImp(BaseApkinfo):
         - Enumerate -> call order (0..n-1) for Quark lowerfunc()
         - Also populate _calls_by_caller_sig for evidence
         """
-        _ws_re = self._WHITESPACE_RE
-
         def _pick(d: dict, *keys):
             for k in keys:
                 if k in d and d.get(k) is not None:
@@ -416,7 +420,7 @@ class DexTraceImp(BaseApkinfo):
             s = (sig or "").strip()
             if not s:
                 return {}
-            s = _ws_re.sub("", s)
+            s = self._WHITESPACE_RE.sub("", s)
 
             if "->" not in s:
                 return {"class": s}
@@ -530,34 +534,20 @@ class DexTraceImp(BaseApkinfo):
 
                 self._calls_by_caller_sig[caller_sig].append((callee_sig, int(order)))
 
-    def _register_abstract_methods(self) -> None:
-        """Second pass: register abstract/interface method declarations into _method_by_sig.
+    def _register_abstract_methods_from_cache(self) -> None:
+        """Register abstract/interface method declarations into _method_by_sig.
 
         extract_api_calls() only sees invoke-* bytecode targets, so abstract
         methods (code_off=0) never appear as callees and are absent from the
         call graph.  Quark's find_api_usage needs them as stepping-stones for
         subtype resolution (level-2/3 combination check).
-        """
-        from dextrace.core.dex_class_iter import iter_class_defs, iter_class_data_methods  # type: ignore
-        from dextrace.core.dex_resolver import DexResolver  # type: ignore
 
-        for _dex_name, dex_bytes in iter_apk_dex_files(self._target_path):
-            try:
-                resolver = DexResolver(dex_bytes)
-            except Exception:
-                continue
-            for cdef in iter_class_defs(dex_bytes):
-                if not cdef.class_data_off:
-                    continue
-                for em in iter_class_data_methods(dex_bytes, cdef.class_data_off):
-                    if em.code_off != 0:
-                        continue  # only abstract (no-bytecode) declarations needed
-                    result = resolver._get_method(em.method_idx)
-                    if not result:
-                        continue
-                    cls, mname, proto = result
-                    # _sig_to_method_object is idempotent: returns existing entry if present
-                    self._sig_to_method_object(f"{cls}->{mname}{proto}")
+        This method reads from the cached _all_dex_data_cached() result — no
+        ZIP re-open and no second class_def_item scan.
+        """
+        for sig in extract_abstract_methods(self._target_path):
+            # _sig_to_method_object is idempotent: returns existing entry if present
+            self._sig_to_method_object(sig)
 
     def _create_method_object(self, cls: str, name: str, desc: str) -> MethodObject:
         key = (cls, name, desc)
