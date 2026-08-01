@@ -137,7 +137,28 @@ class DexTraceImp(BaseApkinfo):
         """
         Best-effort for Quark stage-5 evidence/reporting.
         We convert smali lines to BytecodeObject.
+
+        Fast path: methods that appear as callers in the DexTrace call graph
+        definitely have DEX bytecode.  Yield a no-op sentinel FIRST so that
+        callers who only check `next(..., None)` (e.g. find_api_usage) short-
+        circuit without triggering the expensive disasm call.  Full consumers
+        (e.g. _evaluate_method) iterate past the sentinel and get real opcodes.
         """
+        if method_object in self._calls_by_caller:
+            yield BytecodeObject("", None, "")  # sentinel — signals "has bytecode"
+            # Reached only when consumer iterates beyond the sentinel
+            ins_json = self._get_method_instructions_json(method_object)
+            if ins_json:
+                for ins in ins_json:
+                    smali = (ins.get("smali") or "").strip()
+                    if not smali or smali.startswith(":"):
+                        continue
+                    try:
+                        yield self._parse_smali_to_bytecodeobject(smali)
+                    except Exception:
+                        continue
+            return
+
         ins_json = self._get_method_instructions_json(method_object)
         if not ins_json:
             return
