@@ -23,6 +23,7 @@ from dextrace.api import (  # type: ignore
     DextraceApiOptions,
     disasm_method,
     extract_api_calls,
+    extract_class_hierarchy,
     get_apk_permissions,
 )
 
@@ -174,13 +175,21 @@ class DexTraceImp(BaseApkinfo):
     def get_strings(self) -> Set[str]:
         return set()
 
-    @property
+    @functools.cached_property
     def superclass_relationships(self) -> Dict[str, Set[str]]:
-        return defaultdict(set)
+        result: DefaultDict[str, Set[str]] = defaultdict(set)
+        for cls, superclass in extract_class_hierarchy(self.apk_filepath).items():
+            if superclass is not None:
+                result[cls].add(superclass)
+        return result
 
-    @property
+    @functools.cached_property
     def subclass_relationships(self) -> Dict[str, Set[str]]:
-        return defaultdict(set)
+        result: DefaultDict[str, Set[str]] = defaultdict(set)
+        for cls, supers in self.superclass_relationships.items():
+            for superclass in supers:
+                result[superclass].add(cls)
+        return result
 
     # ---------- Evidence / wrapper smali ----------
     @functools.lru_cache
