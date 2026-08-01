@@ -125,13 +125,13 @@ class DexTraceImp(BaseApkinfo):
     def all_methods(self) -> Set[MethodObject]:
         return set(self._method_by_sig.values())
 
-    @property
+    @functools.cached_property
     def android_apis(self) -> Set[MethodObject]:
-        return {m for m in self.all_methods if getattr(m, "cache", None) and m.cache.is_android_api}
+        return {m for m in self.all_methods if m.cache.is_android_api}
 
-    @property
+    @functools.cached_property
     def custom_methods(self) -> Set[MethodObject]:
-        return {m for m in self.all_methods if getattr(m, "cache", None) and not m.cache.external}
+        return {m for m in self.all_methods if not m.cache.external}
 
     # ---------- Find method ----------
     @functools.lru_cache()
@@ -163,6 +163,16 @@ class DexTraceImp(BaseApkinfo):
         return list(self._calls_by_caller.get(method_object, []))
 
     # ---------- Bytecode ----------
+    def _yield_bytecode_from_json(self, ins_json: List[dict]) -> Generator[BytecodeObject, None, None]:
+        for ins in ins_json:
+            smali = (ins.get("smali") or "").strip()
+            if not smali or smali.startswith(":"):
+                continue
+            try:
+                yield self._parse_smali_to_bytecodeobject(smali)
+            except Exception:
+                continue
+
     def get_method_bytecode(self, method_object: MethodObject) -> Generator[BytecodeObject, None, None]:
         """
         Best-effort for Quark stage-5 evidence/reporting.
@@ -176,30 +186,14 @@ class DexTraceImp(BaseApkinfo):
         """
         if method_object in self._calls_by_caller:
             yield BytecodeObject("", None, "")  # sentinel — signals "has bytecode"
-            # Reached only when consumer iterates beyond the sentinel
             ins_json = self._get_method_instructions_json(method_object)
             if ins_json:
-                for ins in ins_json:
-                    smali = (ins.get("smali") or "").strip()
-                    if not smali or smali.startswith(":"):
-                        continue
-                    try:
-                        yield self._parse_smali_to_bytecodeobject(smali)
-                    except Exception:
-                        continue
+                yield from self._yield_bytecode_from_json(ins_json)
             return
 
         ins_json = self._get_method_instructions_json(method_object)
-        if not ins_json:
-            return
-        for ins in ins_json:
-            smali = (ins.get("smali") or "").strip()
-            if not smali or smali.startswith(":"):
-                continue
-            try:
-                yield self._parse_smali_to_bytecodeobject(smali)
-            except Exception:
-                continue
+        if ins_json:
+            yield from self._yield_bytecode_from_json(ins_json)
 
     def get_strings(self) -> Set[str]:
         return set()
@@ -291,25 +285,22 @@ class DexTraceImp(BaseApkinfo):
 
         ins_json = self._get_method_instructions_json(parent_method)
         if ins_json:
-
-            def _norm(s: str) -> str:
-                # remove ALL whitespace for robust matching
-                return re.sub(r"\s+", "", s or "")
-
-            def _find_line_idx(needle_sig: str) -> Optional[int]:
-                n = _norm(needle_sig)
-                if not n:
-                    return None
-                for j, it in enumerate(ins_json):
-                    s = _it_smali(it)
-                    if not s or s.startswith(":"):
-                        continue
-                    if n in _norm(s):
-                        return j
-                return None
-
-            i1 = _find_line_idx(first_callee_sig)
-            i2 = _find_line_idx(second_callee_sig)
+            _ws_re_local = self._WHITESPACE_RE
+            n1 = _ws_re_local.sub("", first_callee_sig or "")
+            n2 = _ws_re_local.sub("", second_callee_sig or "")
+            i1 = None
+            i2 = None
+            for j, it in enumerate(ins_json):
+                s = _it_smali(it)
+                if not s or s.startswith(":"):
+                    continue
+                ns = _ws_re_local.sub("", s)
+                if i1 is None and n1 and n1 in ns:
+                    i1 = j
+                if i2 is None and n2 and n2 in ns:
+                    i2 = j
+                if i1 is not None and i2 is not None:
+                    break
 
             def _make_ctx(center: int, window: int) -> Tuple[List[dict], List[str]]:
                 a = max(0, center - window)
@@ -409,6 +400,7 @@ class DexTraceImp(BaseApkinfo):
         - Enumerate -> call order (0..n-1) for Quark lowerfunc()
         - Also populate _calls_by_caller_sig for evidence
         """
+        _ws_re = self._WHITESPACE_RE
 
         def _pick(d: dict, *keys):
             for k in keys:
@@ -424,7 +416,7 @@ class DexTraceImp(BaseApkinfo):
             s = (sig or "").strip()
             if not s:
                 return {}
-            s = re.sub(r"\s+", "", s)
+            s = _ws_re.sub("", s)
 
             if "->" not in s:
                 return {"class": s}
@@ -525,7 +517,7 @@ class DexTraceImp(BaseApkinfo):
             # stable sort: offset-present first (ascending), then missing; keep original order as tiebreaker
             items_sorted = sorted(
                 enumerate(items),
-                key=lambda x: (x[1][0] is None, x[1][0] if x[1][0] is not None else 0, x[0]),
+                key=lambda x: (x[1][0] is None, x[1][0] or 0, x[0]),
             )
 
             caller_mo = self._sig_to_method_object(caller_sig)
@@ -567,6 +559,18 @@ class DexTraceImp(BaseApkinfo):
                     # _sig_to_method_object is idempotent: returns existing entry if present
                     self._sig_to_method_object(f"{cls}->{mname}{proto}")
 
+    def _create_method_object(self, cls: str, name: str, desc: str) -> MethodObject:
+        key = (cls, name, desc)
+        if key in self._method_by_sig:
+            return self._method_by_sig[key]
+        full_name = f"{cls}->{name}{desc}"
+        external = self._is_external_class(cls)
+        is_android_api = self._is_android_api_class(cls)
+        cache = DextraceMethodCache(full_name=full_name, external=external, is_android_api=is_android_api)
+        mo = MethodObject(class_name=cls, name=name, descriptor=desc, cache=cache)
+        self._method_by_sig[key] = mo
+        return mo
+
     def _sig_to_method_object(self, dextrace_sig: str) -> MethodObject:
         """
         Create/find a MethodObject from a DexTrace method signature:
@@ -585,17 +589,7 @@ class DexTraceImp(BaseApkinfo):
             desc = m.group(3)
 
         desc = self._normalize_descriptor(desc)
-        key = (cls, name, desc)
-        if key in self._method_by_sig:
-            return self._method_by_sig[key]
-
-        full_name = f"{cls}->{name}{desc}"
-        external = self._is_external_class(cls)
-        is_android_api = self._is_android_api_class(cls)
-        cache = DextraceMethodCache(full_name=full_name, external=external, is_android_api=is_android_api)
-        mo = MethodObject(class_name=cls, name=name, descriptor=desc, cache=cache)
-        self._method_by_sig[key] = mo
-        return mo
+        return self._create_method_object(cls, name, desc)
 
     def _to_method_object(self, raw: dict) -> MethodObject:
         """
@@ -611,18 +605,7 @@ class DexTraceImp(BaseApkinfo):
 
         cls = self._normalize_class(str(cls))
         desc = self._normalize_descriptor(str(desc))
-
-        key = (cls, str(name), desc)
-        if key in self._method_by_sig:
-            return self._method_by_sig[key]
-
-        full_name = f"{cls}->{name}{desc}"
-        external = self._is_external_class(cls)
-        is_android_api = self._is_android_api_class(cls)
-        cache = DextraceMethodCache(full_name=full_name, external=external, is_android_api=is_android_api)
-        mo = MethodObject(class_name=cls, name=str(name), descriptor=desc, cache=cache)
-        self._method_by_sig[key] = mo
-        return mo
+        return self._create_method_object(cls, str(name), desc)
 
     def _normalize_class(self, cls: str) -> str:
         cls = str(cls).strip()
@@ -649,7 +632,7 @@ class DexTraceImp(BaseApkinfo):
         return desc
 
     def _normalize_dextrace_sig(self, sig: str) -> str:
-        return re.sub(r"\s+", "", str(sig))
+        return self._WHITESPACE_RE.sub("", str(sig))
 
     def _methodobject_to_dextrace_sig(self, mo: MethodObject) -> str:
         """
@@ -660,7 +643,7 @@ class DexTraceImp(BaseApkinfo):
         name = (mo.name or "").strip()
         desc = (mo.descriptor or "").strip()
 
-        desc = re.sub(r"\s+", "", desc)
+        desc = self._WHITESPACE_RE.sub("", desc)
         cls = self._normalize_class(cls)
         return f"{cls}->{name}{desc}"
 
@@ -725,6 +708,7 @@ class DexTraceImp(BaseApkinfo):
 
     # -------- Small smali parser --------
     _SMALI_SPLIT_RE = re.compile(r"[{},]+")
+    _WHITESPACE_RE = re.compile(r"\s+")
 
     @staticmethod
     def _strip_smali_comment(smali: str) -> str:
