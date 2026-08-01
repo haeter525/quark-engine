@@ -27,6 +27,7 @@ from dextrace.api import (  # type: ignore
     extract_api_calls,
     extract_class_hierarchy,
     get_apk_permissions,
+    iter_apk_dex_files,
 )
 
 # ---- Compatibility cache object (MethodObject.cache) ----
@@ -62,9 +63,8 @@ class DexTraceImp(BaseApkinfo):
     ):
         import tempfile
 
-        super().__init__(apk_filepath, "dextrace", tmp_dir)
-
         self._patched_tmp: Optional[str] = None
+        super().__init__(apk_filepath, "dextrace", tmp_dir)
 
         # BaseApkinfo.patch() rewrote self.data (mmap copy) in-place.
         # DexTrace API only accepts file paths, so write the patched bytes to a
@@ -103,6 +103,12 @@ class DexTraceImp(BaseApkinfo):
         dex_report = extract_api_calls(self._target_path, options=self._options)
         api_calls = self._extract_api_calls(dex_report)
         self._build_graph(api_calls)
+        self._register_abstract_methods()
+
+        # Class-keyed index so find_method() avoids O(|all_methods|) scans
+        self._methods_by_class: DefaultDict[str, List[MethodObject]] = defaultdict(list)
+        for _mo in self._method_by_sig.values():
+            self._methods_by_class[_mo.class_name].append(_mo)
 
     def __del__(self):
         if self._patched_tmp:
@@ -135,15 +141,16 @@ class DexTraceImp(BaseApkinfo):
         method_name: Optional[str] = None,
         descriptor: Optional[str] = None,
     ) -> List[MethodObject]:
-        methods: Iterable[MethodObject] = self.all_methods
         if class_name:
             normalized_class = self._normalize_class(class_name)
-            methods = (m for m in methods if m.class_name == normalized_class)
+            candidates: Iterable[MethodObject] = self._methods_by_class.get(normalized_class, [])
+        else:
+            candidates = self._method_by_sig.values()
         if method_name:
-            methods = (m for m in methods if m.name == method_name)
+            candidates = (m for m in candidates if m.name == method_name)
         if descriptor:
-            methods = (m for m in methods if m.descriptor == descriptor)
-        return list(methods)
+            candidates = (m for m in candidates if m.descriptor == descriptor)
+        return list(candidates)
 
     # ---------- XREFs ----------
     @functools.lru_cache()
@@ -530,6 +537,35 @@ class DexTraceImp(BaseApkinfo):
                 self._callers_by_callee[callee_mo].add(caller_mo)
 
                 self._calls_by_caller_sig[caller_sig].append((callee_sig, int(order)))
+
+    def _register_abstract_methods(self) -> None:
+        """Second pass: register abstract/interface method declarations into _method_by_sig.
+
+        extract_api_calls() only sees invoke-* bytecode targets, so abstract
+        methods (code_off=0) never appear as callees and are absent from the
+        call graph.  Quark's find_api_usage needs them as stepping-stones for
+        subtype resolution (level-2/3 combination check).
+        """
+        from dextrace.core.dex_class_iter import iter_class_defs, iter_class_data_methods  # type: ignore
+        from dextrace.core.dex_resolver import DexResolver  # type: ignore
+
+        for _dex_name, dex_bytes in iter_apk_dex_files(self._target_path):
+            try:
+                resolver = DexResolver(dex_bytes)
+            except Exception:
+                continue
+            for cdef in iter_class_defs(dex_bytes):
+                if not cdef.class_data_off:
+                    continue
+                for em in iter_class_data_methods(dex_bytes, cdef.class_data_off):
+                    if em.code_off != 0:
+                        continue  # only abstract (no-bytecode) declarations needed
+                    result = resolver._get_method(em.method_idx)
+                    if not result:
+                        continue
+                    cls, mname, proto = result
+                    # _sig_to_method_object is idempotent: returns existing entry if present
+                    self._sig_to_method_object(f"{cls}->{mname}{proto}")
 
     def _sig_to_method_object(self, dextrace_sig: str) -> MethodObject:
         """
