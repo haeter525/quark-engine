@@ -116,7 +116,8 @@ class DexTraceImp(BaseApkinfo):
     ) -> List[MethodObject]:
         methods: Iterable[MethodObject] = self.all_methods
         if class_name:
-            methods = (m for m in methods if m.class_name == class_name)
+            normalized_class = self._normalize_class(class_name)
+            methods = (m for m in methods if m.class_name == normalized_class)
         if method_name:
             methods = (m for m in methods if m.name == method_name)
         if descriptor:
@@ -573,6 +574,8 @@ class DexTraceImp(BaseApkinfo):
             return cls
         if cls.startswith("L") and cls.endswith(";"):
             return cls.replace(".", "/")
+        if cls.startswith("L") and not cls.endswith(";"):
+            return f"{cls};"
         if "/" in cls and not cls.startswith("L"):
             return f"L{cls};"
         return f"L{cls.replace('.', '/')};"
@@ -667,8 +670,23 @@ class DexTraceImp(BaseApkinfo):
     # -------- Small smali parser --------
     _SMALI_SPLIT_RE = re.compile(r"[{},]+")
 
+    @staticmethod
+    def _strip_smali_comment(smali: str) -> str:
+        idx = smali.find("//")
+        if idx == -1:
+            return smali.strip()
+        if smali[:idx].count('"') % 2 == 0:
+            return smali[:idx].strip()
+        in_string = False
+        for i, c in enumerate(smali):
+            if c == '"':
+                in_string = not in_string
+            elif not in_string and smali[i:i+2] == '//':
+                return smali[:i].strip()
+        return smali.strip()
+
     def _parse_smali_to_bytecodeobject(self, smali: str) -> BytecodeObject:
-        smali = smali.rsplit("//", maxsplit=1)[0].strip()
+        smali = self._strip_smali_comment(smali)
         if not smali:
             raise ValueError("Empty smali")
 
