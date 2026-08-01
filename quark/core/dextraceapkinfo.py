@@ -26,8 +26,8 @@ from dextrace.api import (  # type: ignore
     disasm_method,
     extract_api_calls,
     extract_class_hierarchy,
-    get_apk_permissions,
     iter_apk_dex_files,
+    parse_manifest,
 )
 
 # ---- Compatibility cache object (MethodObject.cache) ----
@@ -81,13 +81,13 @@ class DexTraceImp(BaseApkinfo):
         self._enable_disasm = bool(enable_disasm)
         self._debug = bool(debug)
 
-        # Permissions (APK mode only) via DexTrace api.
+        # Permissions (APK mode only). parse_manifest() raises ValueError on
+        # unreadable manifest so Quark exits fast (trickmo/tanglebot pattern).
         self._permissions: List[str] = []
         if self.ret_type == "APK":
-            try:
-                self._permissions = list(get_apk_permissions(self._target_path))
-            except Exception:
-                self._permissions = []
+            self._permissions = list(
+                parse_manifest(self._target_path).get("permissions", [])
+            )
 
         # registries
         self._method_by_sig: Dict[Tuple[str, str, str], MethodObject] = {}

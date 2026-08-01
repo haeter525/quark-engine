@@ -157,3 +157,33 @@ class TestBogusCompressionFix:
         )
 
 
+# ---------------------------------------------------------------------------
+# Manifest fast-fail: DexTraceImp must raise ValueError on broken manifests
+# ---------------------------------------------------------------------------
+
+
+class TestManifestFastFail:
+    """
+    Regression tests for Issue 4 (broken manifest fast-fail).
+
+    trickmo/tanglebot APKs have unreadable AndroidManifest.xml entries.
+    Before the fix, DexTraceImp silently swallowed the parse error and ran
+    3 full DEX passes (134 s on trickmo).  After the fix it raises ValueError
+    immediately, matching Androguard's behavior.
+    """
+
+    @pytest.mark.parametrize("include_manifest,manifest_content", [
+        (True, b"not-valid-axml-bytes"),   # bad AXML bytes
+        (False, None),                      # missing manifest entry
+    ])
+    def test_unreadable_manifest_raises_value_error(
+        self, tmp_path, include_manifest, manifest_content
+    ):
+        """APK with bad or absent AndroidManifest.xml raises ValueError."""
+        apk_path = tmp_path / "test.apk"
+        with zipfile.ZipFile(apk_path, "w") as zf:
+            if include_manifest:
+                zf.writestr("AndroidManifest.xml", manifest_content)
+            zf.writestr("classes.dex", b"")
+        with pytest.raises(ValueError, match="AndroidManifest"):
+            DexTraceImp(str(apk_path))
