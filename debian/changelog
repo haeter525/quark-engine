@@ -1,3 +1,23 @@
+quark-engine (26.8.1-0kali1) kali-dev; urgency=medium
+
+  * Document Enhancement
+
+    - Improve malware documentation by adding an AhRat analysis report and fixing malware report README links. (#934 and #942)
+
+  * Bug Fixes
+
+    - Fix default rule path validation to run only when needed and include interfaces in superclass relationship mapping. (#937 and #953)
+
+  * Dependency Update
+
+    - Bump pip from 26.1 to 26.1.2. (#951)
+
+  * New Feature
+
+    - Add a dependency-update PR validator skill for maintenance workflows. (#932)
+
+ --  Zin Wong <chriswangxxxxx@gmail.com>  Mon, 03 Aug 2026 10:52:28 +0800
+
 quark-engine (26.7.1-0kali1) kali-dev; urgency=medium
 
   * Rule Enhancement
