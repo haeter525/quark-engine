@@ -1,3 +1,26 @@
+quark-engine (26.8.1-0kali1) kali-dev; urgency=medium
+
+  * Document Enhancement
+
+    - Add Quark malware analysis reports for AhRat, AndroRAT, and Sova. (#934, #954, and #957)
+    - Fix broken links in malware report README files. Thanks to @wenxiaojie1. (#942)
+
+  * Bug Fixes
+
+    - Include interfaces in superclass relationship resolution. Thanks to @wenxiaojie1. (#953)
+    - Validate default rule paths only when they are used. Thanks to @gaoflow and @MickeyWzt. (#937)
+
+  * Dependency Update
+
+    - Upgrade Androguard to newer versions. Thanks to @trpyn. (#928)
+
+  * New Feature
+
+    - Add Claude Code skills: `/quark` and `/quark-rule-gen`. (#947)
+    - Add DexTrace core-library backend. (#958)
+
+ --  James Chiang <e619003@gmail.com>  Mon, 03 Aug 2026 11:34:41 +0800
+
 quark-engine (26.7.1-0kali1) kali-dev; urgency=medium
 
   * Rule Enhancement
