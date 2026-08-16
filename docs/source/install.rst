@@ -6,6 +6,14 @@ PyPi::
 
     $ pip3 install -U quark-engine
 
+Quark analyzes APKs with `DexTrace <https://github.com/ev-flow/DexTrace>`_ by
+default, and can also use Androguard (``--core-library androguard``). The
+rizin and radare2 backends need their Python bindings installed separately,
+since they also require the matching external tool on your system::
+
+    $ pip3 install -U "quark-engine[rizin]"     # rzpipe, needs the rizin binary
+    $ pip3 install -U "quark-engine[radare2]"   # r2pipe, needs the radare2 binary
+
 Install from Source::
 
     $ git clone https://github.com/quark-engine/quark-engine.git
@@ -47,9 +55,9 @@ Once you see the following msg, then you're all set::
       -l, --label [max|detailed]      Show report based on label of rules
       -C, --comparison                Behaviors comparison based on max confidence
                                       of rule labels
-      --core-library [androguard|rizin|radare2|shuriken]
+      --core-library [androguard|rizin|radare2|shuriken|dextrace]
                                       Specify the core library used to analyze an
-                                      APK
+                                      APK  [default: dextrace]
       --multi-process INTEGER RANGE   Allow analyzing APK with N processes, 
                                       where N doesn't exceeds the number of usable CPUs - 1 
                                       to avoid memory exhaustion.
