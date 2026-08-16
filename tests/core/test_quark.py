@@ -40,7 +40,7 @@ def simple_quark_obj() -> Quark:
     open(APK_FILENAME, "wb").write(r.content)
 
     apk_file = APK_FILENAME
-    return Quark(apk_file)
+    return Quark(apk_file, core_library="androguard")
 
 
 @pytest.fixture(scope="function")
@@ -49,7 +49,7 @@ def simple_quark_obj_2():
     open(APK_FILENAME_2, "wb").write(r.content)
 
     apk_file = APK_FILENAME_2
-    return Quark(apk_file)
+    return Quark(apk_file, core_library="androguard")
 
 
 @pytest.fixture(scope="function")
