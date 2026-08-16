@@ -41,6 +41,12 @@ class DextraceMethodCache:
     is_android_api: bool
 
 
+# Shared default for classes with no DEX-derived hierarchy entry
+# (external/framework classes). Every Java class ultimately extends Object.
+# Never mutate — shared across every unresolved-class lookup.
+_OBJECT_ONLY_PARENT: Set[str] = {"Ljava/lang/Object;"}
+
+
 class DexTraceImp(BaseApkinfo):
     """
     DexTrace-based Apkinfo backend.
@@ -206,11 +212,15 @@ class DexTraceImp(BaseApkinfo):
     def superclass_relationships(self) -> Dict[str, Set[str]]:
         # extract_class_hierarchy() reads from the _all_dex_data_cached() result
         # that was already populated by extract_api_calls() in __init__ — no ZIP
-        # re-open and no second class_def_item scan.
-        result: DefaultDict[str, Set[str]] = defaultdict(set)
-        for cls, parents in extract_class_hierarchy(self._target_path).items():
-            result[cls].update(parents)
-        return result
+        # re-open and no second class_def_item scan. It returns one fresh set
+        # per class already, so no accumulation is needed here.
+        #
+        # External classes (not defined in this DEX) get no entry; default
+        # them to Object instead of a lookup dead end.
+        return defaultdict(
+            lambda: _OBJECT_ONLY_PARENT,
+            extract_class_hierarchy(self._target_path),
+        )
 
     @functools.cached_property
     def subclass_relationships(self) -> Dict[str, Set[str]]:
