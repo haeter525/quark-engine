@@ -587,7 +587,7 @@ class DexTraceImp(BaseApkinfo):
 
                 self._calls_by_caller_sig[caller_sig].append((callee_sig, reported_offset))
 
-    def _register_abstract_methods_from_cache(self) -> None:
+    def _register_abstract_methods(self) -> None:
         """Register abstract/interface method declarations into _method_by_sig.
 
         extract_api_calls() only sees invoke-* bytecode targets, so abstract
