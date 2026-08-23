@@ -789,6 +789,32 @@ class DexTraceImp(BaseApkinfo):
 
         parameter = params[-1] if params else None
 
+        # smali string literals keep their surrounding quotes (e.g. "wifi");
+        # androguard's operand values are the raw string with no quotes, so
+        # strip them here to match that convention.
+        if parameter and len(parameter) >= 2 and parameter[0] == '"' and parameter[-1] == '"':
+            parameter = (
+                parameter[1:-1]
+                .replace('\\"', '"')
+                .replace('\\n', '\n')
+                .replace('\\t', '\t')
+                .replace('\\\\', '\\')
+            )
+
+        # const/const-wide family carries a numeric literal (const-string and
+        # const-class are handled above/below instead) — androguard's operand
+        # value is an int, so parse smali's textual literal (decimal or 0x-hex,
+        # with an optional 'L' wide-literal suffix) the same way.
+        if (
+            parameter is not None
+            and mnemonic.startswith("const")
+            and not mnemonic.startswith(("const-string", "const-class"))
+        ):
+            try:
+                parameter = int(parameter.rstrip("Ll"), 0)
+            except (TypeError, ValueError):
+                pass
+
         # ---- IMPORTANT: normalize invoke parameter to Quark/Androguard style ----
         # smali invoke last arg is usually: Lcls;->m(Args)Ret
         # Quark pattern in rules often uses androguard format with spaces:
