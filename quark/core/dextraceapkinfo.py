@@ -13,7 +13,8 @@ from collections import defaultdict
 from contextlib import suppress
 from dataclasses import dataclass
 from os import PathLike
-from typing import DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple
+from typing import DefaultDict
+from collections.abc import Generator, Iterable
 
 from quark import config
 from quark.core.interface.baseapkinfo import BaseApkinfo
@@ -54,7 +55,7 @@ log.disabled = not config.DEBUG
 # Shared default for classes with no DEX-derived hierarchy entry
 # (external/framework classes). Every Java class ultimately extends Object.
 # Never mutate — shared across every unresolved-class lookup.
-_OBJECT_ONLY_PARENT: Set[str] = {"Ljava/lang/Object;"}
+_OBJECT_ONLY_PARENT: set[str] = {"Ljava/lang/Object;"}
 
 
 class DexTraceImp(BaseApkinfo):
@@ -71,15 +72,15 @@ class DexTraceImp(BaseApkinfo):
     def __init__(
         self,
         apk_filepath: str | PathLike,
-        tmp_dir: str | PathLike = None,
+        tmp_dir: str | PathLike | None = None,
         *,
-        api_options: Optional[DextraceApiOptions] = None,
+        api_options: DextraceApiOptions | None = None,
         enable_disasm: bool = True,
         debug: bool = False,
     ):
         import tempfile
 
-        self._patched_tmp: Optional[str] = None
+        self._patched_tmp: str | None = None
         super().__init__(apk_filepath, "dextrace", tmp_dir)
 
         # BaseApkinfo.patch() rewrote self.data (mmap copy) in-place.
@@ -99,21 +100,21 @@ class DexTraceImp(BaseApkinfo):
 
         # Permissions (APK mode only). parse_manifest() raises ValueError on
         # unreadable manifest so Quark exits fast (trickmo/tanglebot pattern).
-        self._permissions: List[str] = []
+        self._permissions: list[str] = []
         if self.ret_type == "APK":
             self._permissions = list(
                 parse_manifest(self._target_path).get("permissions", [])
             )
 
         # registries
-        self._method_by_sig: Dict[Tuple[str, str, str], MethodObject] = {}
+        self._method_by_sig: dict[tuple[str, str, str], MethodObject] = {}
 
         # Quark graph structures
-        self._calls_by_caller: DefaultDict[MethodObject, List[Tuple[MethodObject, int]]] = defaultdict(list)
-        self._callers_by_callee: DefaultDict[MethodObject, Set[MethodObject]] = defaultdict(set)
+        self._calls_by_caller: DefaultDict[MethodObject, list[tuple[MethodObject, int]]] = defaultdict(list)
+        self._callers_by_callee: DefaultDict[MethodObject, set[MethodObject]] = defaultdict(set)
 
         # Helper: signature-indexed ordered callees (for evidence)
-        self._calls_by_caller_sig: DefaultDict[str, List[Tuple[str, int]]] = defaultdict(list)
+        self._calls_by_caller_sig: DefaultDict[str, list[tuple[str, int]]] = defaultdict(list)
 
         # Build call graph from DexTrace api.
         # extract_api_calls() triggers _all_dex_data_cached(), which performs a
@@ -132,7 +133,7 @@ class DexTraceImp(BaseApkinfo):
         self._register_no_caller_callee_methods()
 
         # Class-keyed index so find_method() avoids O(|all_methods|) scans
-        self._methods_by_class: DefaultDict[str, List[MethodObject]] = defaultdict(list)
+        self._methods_by_class: DefaultDict[str, list[MethodObject]] = defaultdict(list)
         for _mo in self._method_by_sig.values():
             self._methods_by_class[_mo.class_name].append(_mo)
 
@@ -159,30 +160,30 @@ class DexTraceImp(BaseApkinfo):
 
     # ---------- Basic metadata ----------
     @property
-    def permissions(self) -> List[str]:
+    def permissions(self) -> list[str]:
         return self._permissions
 
     # ---------- Method sets ----------
     @functools.cached_property
-    def all_methods(self) -> Set[MethodObject]:
+    def all_methods(self) -> set[MethodObject]:
         return set(self._method_by_sig.values())
 
     @functools.cached_property
-    def android_apis(self) -> Set[MethodObject]:
+    def android_apis(self) -> set[MethodObject]:
         return {m for m in self.all_methods if m.cache.is_android_api}
 
     @functools.cached_property
-    def custom_methods(self) -> Set[MethodObject]:
+    def custom_methods(self) -> set[MethodObject]:
         return {m for m in self.all_methods if not m.cache.external}
 
     # ---------- Find method ----------
-    @functools.lru_cache()
+    @functools.lru_cache
     def find_method(
         self,
-        class_name: Optional[str] = None,
-        method_name: Optional[str] = None,
-        descriptor: Optional[str] = None,
-    ) -> List[MethodObject]:
+        class_name: str | None = None,
+        method_name: str | None = None,
+        descriptor: str | None = None,
+    ) -> list[MethodObject]:
         if class_name:
             normalized_class = self._normalize_class(class_name)
             candidates: Iterable[MethodObject] = self._methods_by_class.get(normalized_class, [])
@@ -195,17 +196,17 @@ class DexTraceImp(BaseApkinfo):
         return list(candidates)
 
     # ---------- XREFs ----------
-    @functools.lru_cache()
-    def upperfunc(self, method_object: MethodObject) -> Set[MethodObject]:
+    @functools.lru_cache
+    def upperfunc(self, method_object: MethodObject) -> set[MethodObject]:
         return set(self._callers_by_callee.get(method_object, set()))
 
-    @functools.lru_cache()
-    def lowerfunc(self, method_object: MethodObject) -> List[Tuple[MethodObject, int]]:
+    @functools.lru_cache
+    def lowerfunc(self, method_object: MethodObject) -> list[tuple[MethodObject, int]]:
         # Second element is call-order (0..n-1), stable and per-caller
         return list(self._calls_by_caller.get(method_object, []))
 
     # ---------- Bytecode ----------
-    def _yield_bytecode_from_json(self, ins_json: List[dict]) -> Generator[BytecodeObject, None, None]:
+    def _yield_bytecode_from_json(self, ins_json: list[dict]) -> Generator[BytecodeObject]:
         for ins in ins_json:
             smali = (ins.get("smali") or "").strip()
             if not smali or smali.startswith(":"):
@@ -215,7 +216,7 @@ class DexTraceImp(BaseApkinfo):
             except Exception:
                 continue
 
-    def get_method_bytecode(self, method_object: MethodObject) -> Generator[BytecodeObject, None, None]:
+    def get_method_bytecode(self, method_object: MethodObject) -> Generator[BytecodeObject]:
         """
         Best-effort for Quark stage-5 evidence/reporting.
         We convert smali lines to BytecodeObject.
@@ -237,11 +238,11 @@ class DexTraceImp(BaseApkinfo):
         if ins_json:
             yield from self._yield_bytecode_from_json(ins_json)
 
-    def get_strings(self) -> Set[str]:
+    def get_strings(self) -> set[str]:
         return set(extract_strings(self._target_path))
 
     @functools.cached_property
-    def superclass_relationships(self) -> Dict[str, Set[str]]:
+    def superclass_relationships(self) -> dict[str, set[str]]:
         # extract_class_hierarchy() reads from the _all_dex_data_cached() result
         # that was already populated by extract_api_calls() in __init__ — no ZIP
         # re-open and no second class_def_item scan. It returns one fresh set
@@ -255,8 +256,8 @@ class DexTraceImp(BaseApkinfo):
         )
 
     @functools.cached_property
-    def subclass_relationships(self) -> Dict[str, Set[str]]:
-        result: DefaultDict[str, Set[str]] = defaultdict(set)
+    def subclass_relationships(self) -> dict[str, set[str]]:
+        result: DefaultDict[str, set[str]] = defaultdict(set)
         for cls, supers in self.superclass_relationships.items():
             for superclass in supers:
                 result[superclass].add(cls)
@@ -302,10 +303,10 @@ class DexTraceImp(BaseApkinfo):
         first_hex = ""
         second_hex = ""
 
-        first_context: List[dict] = []
-        second_context: List[dict] = []
-        first_context_smali: List[str] = []
-        second_context_smali: List[str] = []
+        first_context: list[dict] = []
+        second_context: list[dict] = []
+        first_context_smali: list[str] = []
+        second_context_smali: list[str] = []
 
         def _it_smali(it: dict) -> str:
             return (it.get("smali") or "").strip()
@@ -314,7 +315,7 @@ class DexTraceImp(BaseApkinfo):
             h = it.get("raw_hex") or it.get("hex") or it.get("bytes") or it.get("insn_hex")
             return (h or "").strip()
 
-        def _it_off(it: dict) -> Optional[int]:
+        def _it_off(it: dict) -> int | None:
             v = it.get("offset")
             if v is None:
                 return None
@@ -323,7 +324,7 @@ class DexTraceImp(BaseApkinfo):
             except Exception:
                 return None
 
-        def _it_byte_off(it: dict) -> Optional[int]:
+        def _it_byte_off(it: dict) -> int | None:
             v = it.get("byte_off") or it.get("byteOff")
             if v is None:
                 return None
@@ -350,11 +351,11 @@ class DexTraceImp(BaseApkinfo):
                 if i1 is not None and i2 is not None:
                     break
 
-            def _make_ctx(center: int, window: int) -> Tuple[List[dict], List[str]]:
+            def _make_ctx(center: int, window: int) -> tuple[list[dict], list[str]]:
                 a = max(0, center - window)
                 b = min(len(ins_json), center + window + 1)
-                ctx_dicts: List[dict] = []
-                ctx_smali: List[str] = []
+                ctx_dicts: list[dict] = []
+                ctx_smali: list[str] = []
                 for k in range(a, b):
                     it = ins_json[k]
                     s = _it_smali(it)
@@ -408,7 +409,7 @@ class DexTraceImp(BaseApkinfo):
     # Internal helpers
     # =========================
 
-    def _extract_api_calls(self, dex_report: dict) -> List[dict]:
+    def _extract_api_calls(self, dex_report: dict) -> list[dict]:
         """
         Accept these containers:
         - {"dex": {"api_calls": [...]}}
@@ -438,7 +439,7 @@ class DexTraceImp(BaseApkinfo):
 
         return []
 
-    def _build_graph(self, api_calls: List[dict]) -> None:
+    def _build_graph(self, api_calls: list[dict]) -> None:
         """
         Build Quark graph using stable per-caller call order.
 
@@ -488,17 +489,21 @@ class DexTraceImp(BaseApkinfo):
             if isinstance(raw, dict):
                 return raw
 
+            # TODO - Remove this after changing the default library
+            # because DexTrace now don't produce these keys.
             raw = _pick(call, f"{which}_method", f"{which}Method", f"{which}_info", f"{which}Info")
             if isinstance(raw, dict):
                 return raw
 
+            # TODO - Remove this after changing the default library
+            # because DexTrace now don't produce these keys.
             sig = _pick(call, f"{which}_sig", f"{which}Sig", f"{which}_signature", f"{which}Signature")
             if isinstance(sig, str) and sig.strip():
                 return _parse_dextrace_sig(sig)
 
             return {}
 
-        def _extract_offset(call: dict) -> Optional[int]:
+        def _extract_offset(call: dict) -> int | None:
             if not isinstance(call, dict):
                 return None
 
@@ -541,7 +546,7 @@ class DexTraceImp(BaseApkinfo):
                     pass
             return None
 
-        per_caller: DefaultDict[str, List[Tuple[Optional[int], str]]] = defaultdict(list)
+        per_caller: DefaultDict[str, list[tuple[int | None, str]]] = defaultdict(list)
 
         for call in api_calls:
             if not isinstance(call, dict):
@@ -703,7 +708,7 @@ class DexTraceImp(BaseApkinfo):
     # -------- Disasm integration (DexTrace api) --------
 
     @functools.lru_cache(maxsize=4096)
-    def _disasm_by_sig(self, dextrace_sig: str) -> Optional[List[dict]]:
+    def _disasm_by_sig(self, dextrace_sig: str) -> list[dict] | None:
         """
         Cached disasm result by DexTrace signature.
         Returns list[dict] like:
@@ -739,13 +744,13 @@ class DexTraceImp(BaseApkinfo):
         if not isinstance(ins, list):
             return None
 
-        out_list: List[dict] = []
+        out_list: list[dict] = []
         for it in ins:
             if isinstance(it, dict) and "smali" in it:
                 out_list.append(it)
         return out_list or None
 
-    def _get_method_instructions_json(self, method_object: MethodObject) -> Optional[List[dict]]:
+    def _get_method_instructions_json(self, method_object: MethodObject) -> list[dict] | None:
         sig = self._methodobject_to_dextrace_sig(method_object)
         return self._disasm_by_sig(sig)
 
@@ -779,8 +784,8 @@ class DexTraceImp(BaseApkinfo):
         mnemonic, args_str = smali.split(maxsplit=1)
         args = [a.strip() for a in self._SMALI_SPLIT_RE.split(args_str) if a.strip()]
 
-        regs: List[str] = []
-        params: List[str] = []
+        regs: list[str] = []
+        params: list[str] = []
         for a in args:
             if a.startswith(("v", "p")):
                 regs.append(a)
