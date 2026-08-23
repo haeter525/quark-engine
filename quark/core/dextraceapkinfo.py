@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 import os
 import re
 from collections import defaultdict
@@ -14,9 +15,11 @@ from dataclasses import dataclass
 from os import PathLike
 from typing import DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple
 
+from quark import config
 from quark.core.interface.baseapkinfo import BaseApkinfo
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
+from quark.utils.logger import defaultHandler
 from quark.utils.tools import descriptor_to_androguard_format
 
 # DexTrace public API (NO CLI fallback)
@@ -42,6 +45,11 @@ class DextraceMethodCache:
     external: bool
     is_android_api: bool
 
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+log.addHandler(defaultHandler)
+log.disabled = not config.DEBUG
 
 # Shared default for classes with no DEX-derived hierarchy entry
 # (external/framework classes). Every Java class ultimately extends Object.
@@ -552,21 +560,32 @@ class DexTraceImp(BaseApkinfo):
             per_caller[caller_sig].append((off, callee_sig))
 
         for caller_sig, items in per_caller.items():
-            # stable sort: offset-present first (ascending), then missing; keep original order as tiebreaker
-            items_sorted = sorted(
-                enumerate(items),
-                key=lambda x: (x[1][0] is None, x[1][0] or 0, x[0]),
-            )
+            # If every call carries a real offset, sort by it
+            # If any call is missing one, alert and keep DexTrace's original
+            # per-caller call order instead of guessing.
+            if any(off is None for off, _ in items):
+                log.warning(
+                    "DexTrace call report missing invoke offset for caller "
+                    "%s; falling back to original call order for its %d "
+                    "callees instead of offset-based sequencing.",
+                    caller_sig,
+                    len(items),
+                )
+                items_sorted = list(enumerate(items))
+            else:
+                items_sorted = sorted(enumerate(items), key=lambda x: int(x[1][0]))
 
             caller_mo = self._sig_to_method_object(caller_sig)
 
-            for order, (_orig_idx, (_off, callee_sig)) in enumerate(items_sorted):
+            for order, (_orig_idx, (off, callee_sig)) in enumerate(items_sorted):
                 callee_mo = self._sig_to_method_object(callee_sig)
 
-                self._calls_by_caller[caller_mo].append((callee_mo, int(order)))
+                reported_offset = int(off) if off is not None else int(order)
+
+                self._calls_by_caller[caller_mo].append((callee_mo, reported_offset))
                 self._callers_by_callee[callee_mo].add(caller_mo)
 
-                self._calls_by_caller_sig[caller_sig].append((callee_sig, int(order)))
+                self._calls_by_caller_sig[caller_sig].append((callee_sig, reported_offset))
 
     def _register_abstract_methods_from_cache(self) -> None:
         """Register abstract/interface method declarations into _method_by_sig.
