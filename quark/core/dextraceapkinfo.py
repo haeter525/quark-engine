@@ -27,6 +27,8 @@ from dextrace.api import (  # type: ignore
     extract_abstract_methods,
     extract_api_calls,
     extract_class_hierarchy,
+    extract_declared_methods,
+    extract_strings,
     parse_manifest,
 )
 
@@ -113,12 +115,34 @@ class DexTraceImp(BaseApkinfo):
         dex_report = extract_api_calls(self._target_path, options=self._options)
         api_calls = self._extract_api_calls(dex_report)
         self._build_graph(api_calls)
-        self._register_abstract_methods_from_cache()
+        
+        # Register abstract methods
+        self._register_abstract_methods()
+
+        # Register a concrete method with no outgoing calls and no
+        # visible caller within the same DEX(es)
+        self._register_no_caller_callee_methods()
 
         # Class-keyed index so find_method() avoids O(|all_methods|) scans
         self._methods_by_class: DefaultDict[str, List[MethodObject]] = defaultdict(list)
         for _mo in self._method_by_sig.values():
             self._methods_by_class[_mo.class_name].append(_mo)
+
+    def _register_no_caller_callee_methods(self):
+        """Register declared methods invisible to the call graph.
+
+        extract_api_calls() only sees invoke-* bytecode targets, and
+        _register_abstract_methods() only sees code_off==0 declarations.
+        A concrete method with no outgoing calls and no visible caller
+        within the same DEX(es) (e.g. an interface-callback override like
+        HostnameVerifier.verify()) is invisible to both, so this walks
+        every declared method up front to fill in the rest. Runs off the
+        already-cached DexTrace scan (no extra ZIP open or class_def_item
+        pass), and keeps all_methods/android_apis/custom_methods correct
+        from the start regardless of access order.
+        """
+        for sig in extract_declared_methods(self._target_path):
+            self._sig_to_method_object(sig)
 
     def __del__(self):
         if self._patched_tmp:
@@ -206,7 +230,7 @@ class DexTraceImp(BaseApkinfo):
             yield from self._yield_bytecode_from_json(ins_json)
 
     def get_strings(self) -> Set[str]:
-        return set()
+        return set(extract_strings(self._target_path))
 
     @functools.cached_property
     def superclass_relationships(self) -> Dict[str, Set[str]]:
