@@ -16,7 +16,7 @@ required_requirements = [
     "plotly",
     "click",
     "pathvalidate==3.2.3",
-    "dextrace",
+    "dextrace>=26.9.1",
 ]
 
 quarkAgentRequirements = [
