@@ -294,8 +294,8 @@ class DexTraceImp(BaseApkinfo):
                 break
 
         # IMPORTANT: always use dextrace sig as callee signature in evidence
-        first_callee_sig = first_sig
-        second_callee_sig = second_sig
+        first_callee_sig = self._method_sig_to_androguard_format(first_sig)
+        second_callee_sig = self._method_sig_to_androguard_format(second_sig)
 
         # default fallback
         first_line = ["invoke", first_callee_sig]
@@ -377,14 +377,16 @@ class DexTraceImp(BaseApkinfo):
             if i1 is not None:
                 s1 = _it_smali(ins_json[i1])
                 if s1 and not s1.startswith(":"):
-                    first_line = [s1.split()[0], first_callee_sig]
+                    bc1 = self._parse_smali_to_bytecodeobject(s1)
+                    first_line = [bc1.mnemonic, *(bc1.registers or []), first_callee_sig]
                 first_hex = _it_hex(ins_json[i1]) or ""
                 first_context, first_context_smali = _make_ctx(i1, window=window)
 
             if i2 is not None:
                 s2 = _it_smali(ins_json[i2])
                 if s2 and not s2.startswith(":"):
-                    second_line = [s2.split()[0], second_callee_sig]
+                    bc2 = self._parse_smali_to_bytecodeobject(s2)
+                    second_line = [bc2.mnemonic, *(bc2.registers or []), second_callee_sig]
                 second_hex = _it_hex(ins_json[i2]) or ""
                 second_context, second_context_smali = _make_ctx(i2, window=window)
 
@@ -773,6 +775,22 @@ class DexTraceImp(BaseApkinfo):
                 return smali[:i].strip()
         return smali.strip()
 
+    @staticmethod
+    def _method_sig_to_androguard_format(sig: str) -> str:
+        # sig is "Lcls;->name(Args)Ret" with no spaces between args;
+        # reformat the descriptor part to androguard style (spaced args).
+        # Not a method signature (no "->"/"(") — return unchanged.
+        if not sig or "->" not in sig or "(" not in sig:
+            return sig
+        try:
+            cls, rest = sig.split("->", 1)
+            name, _, tail = rest.partition("(")
+            proto = ("(" + tail).replace(" ", "")
+            return f"{cls}->{name}{descriptor_to_androguard_format(proto)}"
+        except Exception:
+            # if anything fails, keep raw signature
+            return sig
+
     def _parse_smali_to_bytecodeobject(self, smali: str) -> BytecodeObject:
         smali = self._strip_smali_comment(smali)
         if not smali:
@@ -806,14 +824,21 @@ class DexTraceImp(BaseApkinfo):
                 .replace('\\\\', '\\')
             )
 
-        # const/const-wide family carries a numeric literal (const-string and
-        # const-class are handled above/below instead) — androguard's operand
-        # value is an int, so parse smali's textual literal (decimal or 0x-hex,
-        # with an optional 'L' wide-literal suffix) the same way.
+        # const/const-wide family and the /lit8 /lit16 arithmetic family
+        # (e.g. add-int/lit8, rsub-int) carry a numeric literal (const-string
+        # and const-class are handled above/below instead) — androguard's
+        # operand value is an int, so parse smali's textual literal (decimal
+        # or 0x-hex, with an optional 'L' wide-literal suffix) the same way.
         if (
             parameter is not None
-            and mnemonic.startswith("const")
-            and not mnemonic.startswith(("const-string", "const-class"))
+            and (
+                (
+                    mnemonic.startswith("const")
+                    and not mnemonic.startswith(("const-string", "const-class"))
+                )
+                or "/lit" in mnemonic
+                or mnemonic.startswith("rsub-int")
+            )
         ):
             try:
                 parameter = int(parameter.rstrip("Ll"), 0)
@@ -824,18 +849,20 @@ class DexTraceImp(BaseApkinfo):
         # smali invoke last arg is usually: Lcls;->m(Args)Ret
         # Quark pattern in rules often uses androguard format with spaces:
         #   Lcls; m (ArgsWithSpaces)Ret
-        if parameter and mnemonic.startswith("invoke-") and "->" in parameter and "(" in parameter:
-            try:
-                cls, rest = parameter.split("->", 1)
-                mname = rest.split("(", 1)[0]
-                proto = "(" + rest.split("(", 1)[1]  # includes return type
-                proto = proto.replace(" ", "")
-                # make it androguard-format (adds spaces between params)
-                proto_fmt = descriptor_to_androguard_format(proto)
-                # match Quark's common printing style: "Lcls; method (..).."
-                parameter = f"{cls}->{mname}{proto_fmt}"
-            except Exception:
-                # if anything fails, keep raw parameter
-                pass
+        if parameter and mnemonic.startswith("invoke-"):
+            parameter = self._method_sig_to_androguard_format(parameter)
 
-        return BytecodeObject(mnemonic, regs or None, parameter)
+        # ---- normalize field parameter to Quark/Androguard style ----
+        # smali field access last arg is: Lcls;->field:Type
+        # Androguard format uses a space instead of the colon: Lcls;->field Type
+        if (
+            parameter
+            and mnemonic.startswith(("iget", "iput", "sget", "sput"))
+            and "->" in parameter
+            and ":" in parameter.split("->", 1)[1]
+        ):
+            cls, rest = parameter.split("->", 1)
+            fname, ftype = rest.split(":", 1)
+            parameter = f"{cls}->{fname} {ftype}"
+
+        return BytecodeObject(mnemonic, regs, parameter)

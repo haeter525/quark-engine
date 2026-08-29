@@ -10,6 +10,7 @@ from quark.core.interface.baseapkinfo import BaseApkinfo
 from quark.core.rzapkinfo import RizinImp
 from quark.core.r2apkinfo import R2Imp
 from quark.core.shurikenapkinfo import ShurikenImp
+from quark.core.dextraceapkinfo import DexTraceImp
 from quark.core.struct.bytecodeobject import BytecodeObject
 from quark.core.struct.methodobject import MethodObject
 
@@ -72,6 +73,8 @@ def __generateTestIDs(testInput: Tuple[BaseApkinfo, Literal["DEX", "APK"]]):
         (R2Imp, "APK"),
         (ShurikenImp, "DEX"),
         (ShurikenImp, "APK"),
+        (DexTraceImp, "DEX"),
+        (DexTraceImp, "APK"),
     ),
     ids=__generateTestIDs,
 )
@@ -121,6 +124,8 @@ def apkinfo_with_R2Imp_only(request, SAMPLE_PATH_13667, dex_file):
         (R2Imp, "APK"),
         (ShurikenImp, "DEX"),
         (ShurikenImp, "APK"),
+        (DexTraceImp, "DEX"),
+        (DexTraceImp, "APK"),
     ),
     ids=__generateTestIDs,
 )
