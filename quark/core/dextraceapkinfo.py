@@ -229,10 +229,6 @@ class DexTraceImp(BaseApkinfo):
         """
         if method_object in self._calls_by_caller:
             yield BytecodeObject("", None, "")  # sentinel — signals "has bytecode"
-            ins_json = self._get_method_instructions_json(method_object)
-            if ins_json:
-                yield from self._yield_bytecode_from_json(ins_json)
-            return
 
         ins_json = self._get_method_instructions_json(method_object)
         if ins_json:
