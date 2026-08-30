@@ -302,13 +302,19 @@ class TestApkinfo:
             ),
         }
 
-        if apkinfo.core_library == "androguard":
-            assert len(apkinfo.android_apis) == 1270
-        elif apkinfo.core_library == "rizin":
-            assert len(apkinfo.android_apis) > 0
-        elif apkinfo.core_library == "shuriken":
-            assert len(apkinfo.android_apis) == 1438
-            return
+        match apkinfo.core_library:
+            case "androguard":
+                assert len(apkinfo.android_apis) == 1270
+            case "rizin":
+                assert len(apkinfo.android_apis) > 0
+            case "shuriken":
+                assert len(apkinfo.android_apis) == 1438
+            case "dextrace":
+                assert len(apkinfo.android_apis) == 5348
+            case "radare2":
+                pass
+            case _:
+                assert False, f"Unknown core library: {apkinfo.core_library}"
 
         assert api.issubset(apkinfo.android_apis)
 
@@ -325,12 +331,19 @@ class TestApkinfo:
                 "()V",
             ),
         }
-        if apkinfo.core_library == "androguard":
-            assert len(apkinfo.custom_methods) == 3999
-        elif apkinfo.core_library == "rizin":
-            assert len(apkinfo.custom_methods) > 0
-        elif apkinfo.core_library == "shuriken":
-            assert len(apkinfo.custom_methods) == 3999
+        match apkinfo.core_library:
+            case "androguard":
+                assert len(apkinfo.custom_methods) == 3999
+            case "rizin":
+                assert len(apkinfo.custom_methods) > 0
+            case "shuriken":
+                assert len(apkinfo.custom_methods) == 3999
+            case "dextrace":
+                assert len(apkinfo.custom_methods) == 109
+            case "radare2":
+                pass
+            case _:
+                assert False, f"Unknown core library: {apkinfo.core_library}"
 
         assert test_custom_method.issubset(apkinfo.custom_methods)
 
