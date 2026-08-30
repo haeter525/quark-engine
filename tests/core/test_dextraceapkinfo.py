@@ -147,6 +147,7 @@ class TestBogusCompressionFix:
         """DexTraceImp must not leave temp APK files on disk after the instance is GC'd."""
         import glob
         import tempfile
+
         tmp_dir = tempfile.gettempdir()
         apk_before = set(glob.glob(os.path.join(tmp_dir, "*.apk")))
         instance = DexTraceImp(SAMPLE_PATH_3d52b)
@@ -173,10 +174,13 @@ class TestManifestFastFail:
     immediately, matching Androguard's behavior.
     """
 
-    @pytest.mark.parametrize("include_manifest,manifest_content", [
-        (True, b"not-valid-axml-bytes"),   # bad AXML bytes
-        (False, None),                      # missing manifest entry
-    ])
+    @pytest.mark.parametrize(
+        "include_manifest,manifest_content",
+        [
+            (True, b"not-valid-axml-bytes"),  # bad AXML bytes
+            (False, None),  # missing manifest entry
+        ],
+    )
     def test_unreadable_manifest_raises_value_error(
         self, tmp_path, include_manifest, manifest_content
     ):
@@ -273,6 +277,18 @@ class TestParseSmaliToBytecodeObject:
         assert bytecode.registers == ["v0"]
         assert bytecode.parameter == 1
 
+    def test_const_non_numeric_literal_is_kept_as_string(
+        self, dextrace_instance
+    ):
+        # A const-family literal that isn't a valid int() text (e.g. a
+        # symbolic placeholder) must not raise -- the ValueError is
+        # swallowed and the raw text is kept unparsed.
+        bytecode = dextrace_instance._parse_smali_to_bytecodeobject(
+            "const/4 v0, not_a_number"
+        )
+        assert bytecode.mnemonic == "const/4"
+        assert bytecode.parameter == "not_a_number"
+
     def test_const_string_strips_quotes(self, dextrace_instance):
         bytecode = dextrace_instance._parse_smali_to_bytecodeobject(
             'const-string v0, "hello"'
@@ -297,12 +313,13 @@ class TestParseSmaliToBytecodeObject:
     def test_field_access_parameter_uses_space_instead_of_colon(
         self, dextrace_instance
     ):
-        smali = "iget-object v0, v1, Lcom/example/Foo;->name:Ljava/lang/String;"
+        smali = (
+            "iget-object v0, v1, Lcom/example/Foo;->name:Ljava/lang/String;"
+        )
         bytecode = dextrace_instance._parse_smali_to_bytecodeobject(smali)
         assert bytecode.mnemonic == "iget-object"
         assert (
-            bytecode.parameter
-            == "Lcom/example/Foo;->name Ljava/lang/String;"
+            bytecode.parameter == "Lcom/example/Foo;->name Ljava/lang/String;"
         )
 
 
@@ -434,3 +451,55 @@ class TestDisasmBySig:
         ):
             assert dextrace_instance._disasm_by_sig(self.SIG) is None
         dextrace_instance._disasm_by_sig.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# _build_graph offset fallback (missing invoke offset for a caller)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildGraphMissingOffsetFallback:
+    """Regression test for _build_graph's missing-offset fallback path.
+
+    When any call in a caller's call list is missing an "offset", _build_
+    graph must log a warning and keep DexTrace's original per-caller call
+    order instead of raising or guessing an offset-based order.
+    """
+
+    def test_missing_offset_falls_back_to_original_order_and_warns(
+        self, dextrace_instance, caplog
+    ):
+        caller_sig = "Lcom/example/RegressionCaller;->missingOffset()V"
+        callee_a = "Lcom/example/RegressionCalleeA;->a()V"
+        callee_b = "Lcom/example/RegressionCalleeB;->b()V"
+
+        api_calls = [
+            {
+                "caller_sig": caller_sig,
+                "callee_sig": callee_a,
+                "offset": 10,
+            },
+            {
+                "caller_sig": caller_sig,
+                "callee_sig": callee_b,
+                # No offset for this call -> the whole caller must fall
+                # back to original order instead of offset-based sorting.
+            },
+        ]
+
+        from quark.core.dextraceapkinfo import log as dextrace_log
+
+        with caplog.at_level("WARNING", logger="quark.core.dextraceapkinfo"):
+            with patch.object(dextrace_log, "disabled", False):
+                dextrace_instance._build_graph(api_calls)
+
+        assert "falling back to original call order" in caplog.text
+
+        caller_mo = dextrace_instance._sig_to_method_object(caller_sig)
+        callee_mo_a = dextrace_instance._sig_to_method_object(callee_a)
+        callee_mo_b = dextrace_instance._sig_to_method_object(callee_b)
+
+        ordered_callees = [
+            mo for mo, _ in dextrace_instance._calls_by_caller[caller_mo]
+        ]
+        assert ordered_callees == [callee_mo_a, callee_mo_b]
