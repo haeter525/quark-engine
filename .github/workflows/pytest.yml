@@ -75,5 +75,4 @@ jobs:
         fail_ci_if_error: true
         flags: unittests
         token: ${{ secrets.CODECOV_TOKEN }}
-        version: v0.6.0 
 
