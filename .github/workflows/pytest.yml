@@ -9,9 +9,6 @@ on:
   pull_request:
     branches: [ master ]
 
-permissions:
-  id-token: write
-
 jobs:
   build:
 
@@ -77,5 +74,5 @@ jobs:
       with:
         fail_ci_if_error: true
         flags: unittests
-        use_oidc: true
+        token: ${{ secrets.CODECOV_TOKEN }}
 
