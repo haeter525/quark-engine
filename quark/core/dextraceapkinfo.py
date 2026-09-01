@@ -390,17 +390,7 @@ class DexTraceImp(BaseApkinfo):
             "first": first_line,
             "first_hex": first_hex,
             "second": second_line,
-            "second_hex": second_hex,
-            "meta": {
-                "parent": parent_sig,
-                "first_call_order": first_idx,
-                "second_call_order": second_idx,
-                "first_context": first_context,
-                "second_context": second_context,
-                "first_context_smali": first_context_smali,
-                "second_context_smali": second_context_smali,
-                "note": "Evidence from DexTrace api disasm_method(). Callee signatures forced to L...;->m(...)R form.",
-            },
+            "second_hex": second_hex
         }
 
     # =========================
