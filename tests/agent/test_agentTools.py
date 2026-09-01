@@ -14,7 +14,7 @@ import quark.agent.agentTools as agentTools
 def quarkObject(SAMPLE_PATH_14d9f):
     rulePath = "quark/rules/sendLocation_SMS.json"
     rule = RuleObject(rulePath)
-    quark = Quark(SAMPLE_PATH_14d9f, core_library="androguard")
+    quark = Quark(SAMPLE_PATH_14d9f)
     quark.run(rule)
     quark.show_summary_report(rule)
 

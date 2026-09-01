@@ -16,7 +16,7 @@ from quark.utils.regex import (
 class Forensic:
     __slots__ = ["apk", "all_strings"]
 
-    def __init__(self, apkpath, core_library="androguard"):
+    def __init__(self, apkpath):
         if core_library == "rizin":
             self.apk = RizinImp(apkpath)
         elif core_library == "androguard":
