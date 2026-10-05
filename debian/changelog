@@ -1,3 +1,35 @@
+quark-engine (26.10.1-0kali1) kali-dev; urgency=medium
+
+  * Rule Enhancement
+
+    - Add new Quark rules for the Anubis, Antidot, Arsink, BRATA, Cerberus, Godfather, NGate, TangleBot, and TrickMo malware families. (#911, #903, #907, #917, #926, #915, #931, #916, and #909)
+
+  * Document Enhancement
+
+    - Add malware analysis reports for the SharkBot, SuperCardX, and AhRat malware families, and improve related malware report documentation and links. (#900, #927, #934, #898, #901, and #942)
+
+  * New Feature
+
+    - Add Phase 5 dynamic string resolution via DexTrace and a dependency-update PR validator skill. (#919 and #932)
+
+  * Bug Fixes
+
+    - Fix bytecode parsing and register object tracking issues, improve interface superclass relationship handling, and validate the default rule path only when used. (#867, #886, #889, #890, #953, and #937)
+
+  * Dependency Update
+
+    - Bump pip, pytest, requests, idna, lxml, urllib3, pygments, and black to newer versions. (#951, #906, #893, #923, #910, #914, #918, #897, and #884)
+
+  * CI/Test Maintenance
+
+    - Drop the Shuriken-Analyzer build from CI and update smoke test expected values and behavior counts. (#933, #908, and #905)
+
+  * Release Maintenance
+
+    - Update version information for internal release transitions. (#896, #913, #925, and #939)
+
+ --  Zin Wong <chriswangxxxxx@gmail.com>  Mon, 05 Oct 2026 12:31:40 +0800
+
 quark-engine (26.7.1-0kali1) kali-dev; urgency=medium
 
   * Rule Enhancement
